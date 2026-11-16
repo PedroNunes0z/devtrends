@@ -343,26 +343,53 @@
       '<ul class="panel questions" style="margin-top:28px">' + items + '</ul></section>';
   }
 
+  function githubNotice(r) {
+    if (r.github) return "";
+    var isRateLimit = r.githubError && (r.githubError.indexOf("403") !== -1 || r.githubError.indexOf("rate limit") !== -1 || r.githubError.indexOf("cota") !== -1);
+    var title = isRateLimit ? "Limite de requisições do GitHub atingido (HTTP 403)" : "Dados do GitHub indisponíveis";
+    var desc = isRateLimit
+      ? "A cota não autenticada da API pública do GitHub (60 req/h por IP) foi esgotada. Para continuar analisando sem restrições (5.000 req/h), adicione um GitHub Token pessoal (gratuito) no painel Config."
+      : "A API do GitHub não respondeu no momento. A análise abaixo foi calculada com os dados do Stack Overflow e heurística/Gemini.";
+
+    return '<div class="github-limit-notice panel" style="margin-top:20px;padding:16px 20px;border-left:3px solid var(--const);background:var(--surface)">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">' +
+        '<div>' +
+          '<div style="font-weight:600;color:var(--const);font-size:13px;display:flex;align-items:center;gap:6px">' +
+            icon("alert", "icon-sm") + ' <span>' + esc(title) + '</span>' +
+          '</div>' +
+          '<p style="margin-top:6px;font-size:12px;color:var(--secondary);line-height:1.5">' + esc(desc) + '</p>' +
+        '</div>' +
+        '<button type="button" class="btn btn-secondary" data-open-config style="height:32px;padding:0 14px;font-size:12px;cursor:pointer">Abrir Config</button>' +
+      '</div></div>';
+  }
+
   function sources(r) {
-    var badges = Object.keys(r.sources).map(function (k) {
+    var badges = Object.keys(r.sources || {}).map(function (k) {
       return '<span class="source-badge">' + esc(k) + ' → ' + esc(SOURCE_LABEL[r.sources[k]] || r.sources[k]) + '</span>';
     }).join("");
-    var warnings = r.warnings.map(function (w) {
+    var warnings = (r.warnings || []).map(function (w) {
       return '<li><span class="mark">!</span><span>' + esc(w) + '</span></li>';
     }).join("");
     var generated = new Date(r.generatedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+    var ghRepoName = r.github && r.github.repo ? r.github.repo.fullName : r.tech.repo;
+    var ghApiLink = ghRepoName ? window.DEVTRENDS.config.githubApi + '/repos/' + esc(ghRepoName) : '';
+    var ghWebLink = ghRepoName ? 'https://github.com/' + esc(ghRepoName) : '';
+    var soLink = r.stackoverflow && r.stackoverflow.tagUrl ? esc(r.stackoverflow.tagUrl) : '#';
+
     return '<section class="section"><aside class="nested source-notice" aria-label="Proveniência dos dados">' +
       '<div class="source-badges"><span class="mono" style="font-size:12px;color:var(--tertiary)">proveniência:</span>' + badges +
       '<span class="source-time">gerado ' + esc(generated) + '</span></div>' +
       '<ul class="warnings">' + warnings + '</ul>' +
       '<div class="source-links">' +
-        '<a class="btn-link" href="' + window.DEVTRENDS.config.githubApi + '/repos/' + esc(r.github ? r.github.repo.fullName : r.tech.repo) + '" target="_blank" rel="noopener noreferrer">GitHub cru ' + icon("arrowUpRight", "icon-sm") + '</a>' +
-        '<a class="btn-link" href="' + esc(r.stackoverflow ? r.stackoverflow.tagUrl : "#") + '" target="_blank" rel="noopener noreferrer">Stack Overflow ' + icon("arrowUpRight", "icon-sm") + '</a>' +
+        (ghWebLink ? '<a class="btn-link" href="' + ghWebLink + '" target="_blank" rel="noopener noreferrer">GitHub repo ' + icon("arrowUpRight", "icon-sm") + '</a>' : '') +
+        (ghApiLink ? '<a class="btn-link" href="' + ghApiLink + '" target="_blank" rel="noopener noreferrer">GitHub REST ' + icon("arrowUpRight", "icon-sm") + '</a>' : '') +
+        '<a class="btn-link" href="' + soLink + '" target="_blank" rel="noopener noreferrer">Stack Overflow ' + icon("arrowUpRight", "icon-sm") + '</a>' +
       '</div></aside></section>';
   }
 
   function render(container, report) {
     container.innerHTML =
+      githubNotice(report) +
       trendCard(report) +
       scoreBreakdown(report) +
       projection(report) +

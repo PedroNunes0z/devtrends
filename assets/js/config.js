@@ -20,7 +20,7 @@
     stackexchangeApi: "https://api.stackexchange.com/2.3",
     stackOverflow: "https://stackoverflow.com",
     geminiApi: "https://generativelanguage.googleapis.com/v1beta",
-    geminiModel: "gemini-2.5-flash",
+    geminiModel: "gemini-3.5-flash-lite",
     /* Optional dependency-free scraper you run locally (tools/scraper.mjs). */
     scraperLocal: "http://127.0.0.1:8787/api/stackoverflow",
     cacheTtlMinutes: 60,
@@ -32,8 +32,16 @@
   var STORAGE_KEY = "devtrends.settings.v1";
   var KEYS_STORAGE = "devtrends.gemini-keys.v1";
   var fileConfig = window.DEVTRENDS_CONFIG || {};
+  if (fileConfig.geminiModel === "gemini-2.5-flash") fileConfig.geminiModel = "gemini-3.5-flash-lite";
+
   var stored = {};
   try { stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") || {}; } catch (e) { stored = {}; }
+
+  /* Migrate deprecated or unset model to gemini-3.5-flash-lite */
+  if (!stored.geminiModel || stored.geminiModel === "gemini-2.5-flash") {
+    stored.geminiModel = "gemini-3.5-flash-lite";
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stored)); } catch (e) {}
+  }
 
   /* --- Gemini key rotation state --- */
   var geminiKeys = [];

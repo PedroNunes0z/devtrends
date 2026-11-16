@@ -18,7 +18,7 @@ window.DEVTRENDS_CONFIG = {
   // siteUrl: "https://pedronunes0z.github.io/devtrends",
   // githubApi: "https://api.github.com",
   // stackexchangeApi: "https://api.stackexchange.com/2.3",
-  // geminiModel: "gemini-2.5-flash",
+  // geminiModel: "gemini-3.5-flash-lite",
   // cacheTtlMinutes: 60,
 
   /* Secrets — prefer the Config panel; never commit real values */

@@ -55,8 +55,12 @@
         location.href = reportUrl(slug);
       });
     });
-    Array.prototype.forEach.call((root || document).querySelectorAll("[data-tech]"), function (chip) {
-      chip.addEventListener("click", function () {
+    /* ONLY wire actual chips/buttons — NEVER document.body */
+    Array.prototype.forEach.call((root || document).querySelectorAll(".chip[data-tech], [data-search-scope] [data-tech]"), function (chip) {
+      if (chip === document.body || chip.tagName === "BODY") return;
+      chip.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
         var name = chip.getAttribute("data-tech");
         var form = chip.closest("[data-search-scope]") || document;
         var input = form.querySelector("input[name=tech]");
@@ -94,24 +98,51 @@
     toggle.style.alignItems = "center";
     toggle.style.gap = "6px";
 
-    /* Standard keys */
-    ["githubToken", "stackexchangeKey"].forEach(function (key) {
+    /* Ensure geminiModel input exists in the config panel */
+    var modelInput = panel.querySelector('[name="geminiModel"]');
+    if (!modelInput) {
+      var section = panel.querySelector(".config-section");
+      if (section) {
+        var label = document.createElement("label");
+        label.innerHTML = 'Modelo Gemini<input type="text" name="geminiModel" placeholder="gemini-3.5-flash-lite" autocomplete="off"><span class="hint">Padrão: gemini-3.5-flash-lite.</span>';
+        var saveBtn = section.querySelector("[data-config-save]");
+        if (saveBtn) section.insertBefore(label, saveBtn);
+        else section.appendChild(label);
+      }
+    }
+
+    /* Standard keys & model */
+    ["githubToken", "stackexchangeKey", "geminiModel"].forEach(function (key) {
       var input = panel.querySelector('[name="' + key + '"]');
-      if (input) input.value = window.DEVTRENDS.stored[key] || "";
+      if (input) input.value = window.DEVTRENDS.config[key] || "";
     });
 
-    toggle.addEventListener("click", function () { panel.classList.toggle("open"); renderKeysList(); });
+    if (panel.__wired) {
+      panel.__onSaved = onSaved;
+      return;
+    }
+    panel.__wired = true;
+    panel.__onSaved = onSaved;
+
+    toggle.addEventListener("click", function (e) {
+      e.stopPropagation();
+      panel.classList.toggle("open");
+      renderKeysList();
+    });
 
     var save = panel.querySelector("[data-config-save]");
-    if (save) save.addEventListener("click", function () {
+    if (save) save.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
       var values = {};
-      ["githubToken", "stackexchangeKey"].forEach(function (key) {
+      ["githubToken", "stackexchangeKey", "geminiModel"].forEach(function (key) {
         var input = panel.querySelector('[name="' + key + '"]');
         if (input) values[key] = input.value.trim();
       });
+      if (!values.geminiModel) values.geminiModel = "gemini-3.5-flash-lite";
       window.DEVTRENDS.save(values);
       panel.classList.remove("open");
-      if (onSaved) onSaved();
+      if (panel.__onSaved) panel.__onSaved();
     });
 
     /* --- Gemini key rotation UI --- */
@@ -120,7 +151,9 @@
     var newKeyLabel = panel.querySelector('[name="new-gemini-label"]');
 
     if (addKeyBtn && newKeyInput) {
-      addKeyBtn.addEventListener("click", function () {
+      addKeyBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
         var val = newKeyInput.value.trim();
         if (!val) return;
         var label = newKeyLabel ? newKeyLabel.value.trim() : "";
@@ -129,6 +162,7 @@
           newKeyInput.value = "";
           if (newKeyLabel) newKeyLabel.value = "";
           renderKeysList();
+          if (panel.__onSaved) panel.__onSaved();
         }
       });
       /* Allow Enter to submit */
@@ -154,11 +188,12 @@
       var active = s.active;
       var masked = s.masked || k.value.slice(0, 8) + "...";
       var statusCls = s.errors > 0 && s.calls > 0 && s.errors / s.calls > 0.5 ? "key-error" : "key-ok";
+      var errTip = s.lastError ? 'title="Último erro: ' + esc(s.lastError) + '"' : '';
       return '<div class="key-row ' + (active ? "key-active" : "") + '">' +
         '<span class="key-status ' + statusCls + '" title="' + (active ? "Ativa" : "Inativa") + '"></span>' +
         '<span class="key-masked mono">' + masked + '</span>' +
         '<span class="key-label">' + esc(k.label || "") + '</span>' +
-        '<span class="key-stats mono">' +
+        '<span class="key-stats mono" ' + errTip + '>' +
           (s.calls || 0) + ' chamadas' +
           (s.errors ? ', ' + s.errors + ' erros' : '') +
         '</span>' +
@@ -169,10 +204,14 @@
 
     /* Wire remove buttons */
     Array.prototype.forEach.call(container.querySelectorAll("[data-remove-key]"), function (btn) {
-      btn.addEventListener("click", function () {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
         var val = btn.getAttribute("data-remove-key");
         window.DEVTRENDS.keys.remove(val);
         renderKeysList();
+        var panel = document.getElementById("config-panel");
+        if (panel && panel.__onSaved) panel.__onSaved();
       });
     });
 
@@ -208,18 +247,50 @@
     var target = document.getElementById("report");
     var slug = document.body.getAttribute("data-tech") || "";
     if (!target || !slug) return;
-    target.innerHTML = status("GET GitHub + Stack Overflow + Gemini…", true);
+
+    var currentRequestId = 0;
 
     function load() {
+      var reqId = ++currentRequestId;
+      target.innerHTML = status("GET GitHub + Stack Overflow + Gemini…", true);
       var opts = collectOptions();
       D.getInsights(slug, opts).then(function (report) {
+        if (reqId !== currentRequestId) return;
         document.title = report.tech.name + ": tendência, popularidade e saúde da comunidade (" + report.ai.indiceVitalidade + "/100) | DevTrends Insights";
         W.render(target, report);
         injectIcons(target);
+        wireReportActions(target);
       }).catch(function (error) {
-        target.innerHTML = status("Falha na consulta: " + error.message, false);
+        if (reqId !== currentRequestId) return;
+        target.innerHTML = '<div class="status-line status-error">' +
+          ICONS.get("alert", "icon-sm") +
+          '<span>Falha na consulta: ' + H.esc(error.message) + '</span>' +
+          '<button type="button" class="btn btn-secondary retry-btn" data-retry-report style="margin-left:12px;height:30px;padding:0 12px;font-size:12px">Tentar novamente</button>' +
+        '</div>';
+        injectIcons(target);
+        var retryBtn = target.querySelector("[data-retry-report]");
+        if (retryBtn) retryBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          load();
+        });
       });
     }
+
+    function wireReportActions(root) {
+      Array.prototype.forEach.call((root || document).querySelectorAll("[data-open-config]"), function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var panel = document.getElementById("config-panel");
+          if (panel) {
+            panel.classList.add("open");
+            panel.scrollIntoView({ behavior: "smooth", block: "start" });
+            renderKeysList();
+          }
+        });
+      });
+    }
+
     wireConfig(load);
 
     /* Wire option change listeners for re-analysis */
@@ -232,6 +303,8 @@
   function wireOptionControls(onChange) {
     var controls = document.querySelectorAll('[data-option-control]');
     Array.prototype.forEach.call(controls, function (el) {
+      if (el.__wiredOption) return;
+      el.__wiredOption = true;
       el.addEventListener("change", function () {
         if (onChange) onChange();
       });

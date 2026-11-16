@@ -127,7 +127,16 @@
       credentials: "omit"
     }).then(function (res) {
       clearTimeout(timer);
-      if (!res.ok) throw new Error("HTTP " + res.status + " em " + new URL(url).host);
+      if (!res.ok) {
+        return res.json().catch(function () { return null; }).then(function (errBody) {
+          var msg = (errBody && errBody.error && errBody.error.message) ||
+                    (errBody && errBody.message) ||
+                    ("HTTP " + res.status + " em " + new URL(url).host);
+          var err = new Error(msg);
+          err.status = res.status;
+          throw err;
+        });
+      }
       return res.json();
     }).catch(function (error) {
       clearTimeout(timer);
@@ -203,7 +212,10 @@
     });
   }
 
+  var lastGithubError = null;
+
   function getGithub(tech) {
+    lastGithubError = null;
     return findRepo(tech).then(function (fullName) {
       return cachedJson(CFG.githubApi + "/repos/" + fullName, { headers: ghHeaders() }).then(function (r) {
         return {
@@ -228,6 +240,7 @@
         });
       });
     }).catch(function (error) {
+      lastGithubError = error.message;
       console.warn("[github]", error.message);
       return null;
     });
@@ -679,6 +692,7 @@
       /* All keys exhausted — fall back to heuristic */
       var fb = heuristic(tech, github, so, options);
       fb.previsao += " (Gemini indisponível)";
+      fb.geminiError = error.message;
       return fb;
     });
   }
@@ -692,16 +706,30 @@
       var timeline = buildTimeline(github, so);
       return getGemini(tech, github, so, timeline, opts).then(function (ai) {
         var warnings = [];
-        if (!github) warnings.push("GitHub REST API não respondeu (cota ou rede). Configure um token no painel Config.");
+        if (!github) {
+          var isRateLimit = lastGithubError && (lastGithubError.indexOf("403") !== -1 || lastGithubError.indexOf("rate limit") !== -1 || lastGithubError.indexOf("cota") !== -1);
+          if (isRateLimit) {
+            warnings.push("Limite de taxa da API do GitHub atingido (cota de 60 req/h excedida). Configure um GitHub Token no painel Config para ter 5.000 req/h.");
+          } else {
+            warnings.push("GitHub REST API não respondeu" + (lastGithubError ? " (" + lastGithubError + ")" : "") + ". Configure um token no painel Config.");
+          }
+        }
         if (github && github.note) warnings.push(github.note);
         if (so && so.note) warnings.push(so.note);
         if (so && so.source === "demo") warnings.push("Exibindo dados de demonstração para o Stack Overflow.");
-        if (ai.source === "heuristica-local") warnings.push("Sem chave Gemini: análise gerada pela heurística local.");
+        if (ai.source === "heuristica-local") {
+          if (KEYS.count() > 0) {
+            warnings.push("Gemini indisponível (" + (ai.geminiError || "erro na chamada") + "): análise gerada pela heurística local.");
+          } else {
+            warnings.push("Sem chave Gemini configurada: análise gerada pela heurística local.");
+          }
+        }
         warnings.push("A série histórica é estimada; apenas o ponto atual e a amostragem de stargazers são reais.");
         if (KEYS.count() > 1) warnings.push("Rodízio de chaves Gemini ativo: " + KEYS.count() + " chaves configuradas.");
         return {
           tech: tech, github: github, stackoverflow: so, ai: ai, timeline: timeline,
           generatedAt: new Date().toISOString(), warnings: warnings,
+          githubError: lastGithubError,
           userOptions: opts,
           sources: {
             github: github ? github.source : "indisponivel",

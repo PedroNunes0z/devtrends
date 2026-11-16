@@ -89,7 +89,7 @@ Edite `config.local.js` e inclua a tag **antes** de `assets/js/config.js` nos HT
 | `stackexchangeApi` | `https://api.stackexchange.com/2.3` | Base da API de fallback |
 | `stackOverflow` | `https://stackoverflow.com` | Links das perguntas |
 | `geminiApi` | `https://generativelanguage.googleapis.com/v1beta` | Base do Gemini |
-| `geminiModel` | `gemini-2.5-flash` | Modelo com *structured output* |
+| `geminiModel` | `gemini-3.5-flash-lite` | Modelo com *structured output* |
 | `scraperLocal` | `http://127.0.0.1:8787/api/stackoverflow` | Scraper local opcional |
 | `cacheTtlMinutes` | `60` | TTL do cache de respostas no navegador |
 | `timeoutMs` | `9000` | Timeout de cada chamada |
