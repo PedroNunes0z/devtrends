@@ -48,7 +48,7 @@ Também é possível servir só os arquivos estáticos (`python -m http.server 8
 | Web app responsiva, mobile first | `index.html` + `assets/css/styles.css` (base mobile, refinamentos em `@media (min-width: 768px/1024px)`) |
 | API REST de terceiros | GitHub REST API (`source-github.js`) e Stack Exchange API (`source-stackoverflow.js`) |
 | API do LLM Gemini | `insights-ai.js` (prompt estruturado, rodízio de chaves; heurística local sem chave) |
-| API REST própria com web scraping | `tools/scraper.mjs` → `GET /api/hackernews?tech=...` raspa o HTML do Hacker News e devolve JSON |
+| API REST própria com web scraping | `tools/scraper.mjs` → `GET /api/hackernews?tech=...` raspa o HTML do Hacker News e devolve JSON; `POST /api/gemini/analyze` recebe chave Gemini + termo |
 | Serviço útil | Índice de Vitalidade (0–100), tendência e tags de saúde da comunidade para qualquer tecnologia |
 
 ---
@@ -118,7 +118,7 @@ Edite `config.local.js` e inclua a tag **antes** de `assets/js/config.js` nos HT
 
 ### Hacker News: API REST própria com web scraping
 
-A interface também traz a documentação completa na aba **API** do menu (`#api-docs`): visão geral, endpoints, contrato de resposta e erros.
+A interface também traz a documentação completa na aba **API** do menu (`#api-docs`): visão geral, endpoints, contrato de resposta, erros e o endpoint do Gemini.
 
 `tools/scraper.mjs` é a **API REST criada para este trabalho**. O cliente chama:
 
@@ -151,7 +151,12 @@ De cada linha (`tr.athing`) são extraídos título, pontos, comentários e idad
 
 Esse resultado alimenta a seção dedicada do relatório e o prompt do Gemini: *"A tecnologia X foi mencionada em N títulos de posts no Hacker News na última semana, um aumento de Y% em relação à semana anterior."* Termos comuns em inglês (ex.: "go") são ignorados no casamento. A resposta fica em cache por 5 minutos para não sobrecarregar o HN. Como o arquivo público cobre apenas alguns dias, a semana anterior pode ficar sem base — nesse caso a variação aparece como "sem base de comparação", nunca como zero inventado.
 
-Outros endpoints: `GET /api/health`. Erros de scraping retornam HTTP 502 com `source: "indisponivel"` — nunca números inventados.
+Outros endpoints:
+
+- `GET /api/health` — status do serviço.
+- `POST /api/gemini/analyze` — recebe `{"geminiKey": "AIza...", "term": "React", "focus": "adocao", "context": {...}}` no corpo JSON, chama o Gemini no servidor e devolve `indiceVitalidade`, `tendencia`, `previsao`, `resumo` e `tags`. A chave nunca é gravada; a resposta traz apenas `keyUsed` mascarado. Limite de 64 KB no corpo; `Cache-Control: no-store`.
+
+Erros de scraping ou do Gemini retornam HTTP 502 com `source: "indisponivel"` — nunca números inventados.
 
 **Fallback:** se a página for servida sem o Node (por exemplo, GitHub Pages estático), `source-hackernews.js` tenta raspar o HTML no navegador via proxies CORS (`hnScrapeProxies`). Para usar a API REST do aluno, sirva sempre com `node tools/scraper.mjs`.
 

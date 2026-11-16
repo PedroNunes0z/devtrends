@@ -6,8 +6,9 @@
    Hacker News (HTML de /search e da front page, parseado no servidor).
 
    Endpoints:
-     GET /api/health
-     GET /api/hackernews?tech=react&aliases=reactjs,react.js
+     GET  /api/health
+     GET  /api/hackernews?tech=react&aliases=reactjs,react.js
+     POST /api/gemini/analyze   (corpo: { geminiKey, term, context? })
    Qualquer outra rota serve um arquivo estático do projeto.
 
    Uso:
@@ -27,6 +28,10 @@ const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 const DAY_MS = 86400000;
 const MAX_FRONT_PAGES = 5;
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";
+const GEMINI_MODEL = "gemini-3.5-flash-lite";
+const GEMINI_TIMEOUT_MS = 20000;
+const MAX_BODY_BYTES = 65536;
 const COMMON_WORDS = new Set(["go", "r", "c", "ai"]);
 const CACHE = new Map();
 
@@ -53,7 +58,7 @@ function sendJson(response, status, payload, cacheControl) {
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(body),
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Cache-Control": cacheControl || "no-store"
   });
@@ -266,6 +271,123 @@ async function getBuzz(tech, aliases) {
   return data;
 }
 
+/* --------------------------------------------------- Gemini via API própria */
+
+const GEMINI_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    indiceVitalidade: { type: "NUMBER" },
+    tendencia: { type: "STRING", enum: ["em_alta", "estavel", "em_queda"] },
+    previsao: { type: "STRING" },
+    resumo: { type: "STRING" },
+    tags: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          label: { type: "STRING" },
+          tone: { type: "STRING", enum: ["positivo", "neutro", "atencao"] }
+        },
+        required: ["label", "tone"]
+      }
+    }
+  },
+  required: ["indiceVitalidade", "tendencia", "previsao", "resumo", "tags"]
+};
+
+function maskGeminiKey(key) {
+  return key.length > 12 ? `${key.slice(0, 6)}...${key.slice(-4)}` : `${key.slice(0, 2)}...`;
+}
+
+function clampScore(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(100, Math.max(0, Math.round(number))) : 50;
+}
+
+function readJsonBody(request) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    let tooLarge = false;
+    request.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) { tooLarge = true; return; }
+      chunks.push(chunk);
+    });
+    request.on("end", () => {
+      if (tooLarge) { reject(new Error(`Corpo excede ${MAX_BODY_BYTES / 1024} KB.`)); return; }
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}")); }
+      catch { reject(new Error("Corpo da requisição não é JSON válido.")); }
+    });
+    request.on("error", reject);
+  });
+}
+
+function buildGeminiPrompt(term, focus, context) {
+  const focusText = focus ? `\nFoco solicitado: ${focus}.` : "";
+  const contextText = context
+    ? `\n\nDADOS JÁ COLETADOS PELO CLIENTE (JSON, use como evidência):\n${JSON.stringify(context).slice(0, 4000)}`
+    : "";
+  return `Analise a tecnologia "${term}" e devolva APENAS um JSON válido em português do Brasil.${focusText}${contextText}\n` +
+    "Regras: indiceVitalidade é um número de 0 a 100; tendencia é em_alta, estavel ou em_queda; " +
+    "previsao e resumo são textos curtos (máximo 300 caracteres cada); tags é uma lista de até 5 objetos " +
+    "{label, tone} com tone em positivo, neutro ou atencao. Baseie-se nos dados fornecidos e não invente números.";
+}
+
+function normalizeGeminiAnalysis(parsed, key, model, term) {
+  const tags = Array.isArray(parsed.tags) ? parsed.tags : [];
+  return {
+    source: "gemini-via-api",
+    model,
+    term,
+    keyUsed: maskGeminiKey(key),
+    indiceVitalidade: clampScore(parsed.indiceVitalidade),
+    tendencia: ["em_alta", "estavel", "em_queda"].includes(parsed.tendencia) ? parsed.tendencia : "estavel",
+    previsao: String(parsed.previsao || "Tendência indefinida").slice(0, 300),
+    resumo: String(parsed.resumo || "").slice(0, 300),
+    tags: tags.slice(0, 5).map((tag) => ({
+      label: String(tag.label || "").replace(/^#/, "").slice(0, 40),
+      tone: ["positivo", "neutro", "atencao"].includes(tag.tone) ? tag.tone : "neutro"
+    })).filter((tag) => tag.label)
+  };
+}
+
+async function analyzeWithGemini({ geminiKey, term, focus, context, model }) {
+  const selectedModel = model || GEMINI_MODEL;
+  const url = `${GEMINI_API}/models/${encodeURIComponent(selectedModel)}:generateContent?key=${encodeURIComponent(geminiKey)}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: "Você é um analista de tecnologia. Responda somente com JSON válido." }] },
+      contents: [{ role: "user", parts: [{ text: buildGeminiPrompt(term, focus, context) }] }],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 1024,
+        responseMimeType: "application/json",
+        responseSchema: GEMINI_RESPONSE_SCHEMA
+      }
+    }),
+    signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS)
+  });
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = payload && payload.error && payload.error.message ? `: ${payload.error.message}` : "";
+    throw new Error(`Gemini respondeu HTTP ${response.status}${detail}`);
+  }
+
+  const parts = ((payload && payload.candidates && payload.candidates[0] &&
+    payload.candidates[0].content && payload.candidates[0].content.parts) || []);
+  const rawText = parts.map((part) => part.text || "").join("");
+  if (!rawText) throw new Error("Gemini não devolveu texto");
+
+  let parsed;
+  try { parsed = JSON.parse(rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")); }
+  catch { throw new Error("Gemini não devolveu JSON válido"); }
+  return normalizeGeminiAnalysis(parsed, geminiKey, selectedModel, term);
+}
+
 /* ----------------------------------------------------------- arquivos estáticos */
 
 async function serveStatic(response, pathname) {
@@ -317,7 +439,7 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === "OPTIONS") {
     response.writeHead(204, {
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type"
     });
     response.end();
@@ -325,7 +447,11 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (pathname === "/api/health") {
-    sendJson(response, 200, { ok: true, service: "devtrends-hn-scraper-api", endpoints: ["/api/hackernews"] });
+    sendJson(response, 200, {
+      ok: true,
+      service: "devtrends-hn-scraper-api",
+      endpoints: ["/api/hackernews", "/api/gemini/analyze"]
+    });
     return;
   }
 
@@ -354,6 +480,46 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === "/api/gemini/analyze") {
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "Use POST /api/gemini/analyze com { geminiKey, term } no corpo." });
+      return;
+    }
+    let body;
+    try { body = await readJsonBody(request); }
+    catch (error) { sendJson(response, 400, { error: error.message }); return; }
+
+    const geminiKey = String(body.geminiKey || body.key || "").trim();
+    const term = String(body.term || body.tech || "").trim();
+    if (!geminiKey || geminiKey.length < 10 || geminiKey.length > 200 || /\s/.test(geminiKey)) {
+      sendJson(response, 400, { error: "Forneça geminiKey (chave do Gemini) válido no corpo JSON." });
+      return;
+    }
+    if (!term || term.length > 80 || /[\x00-\x1f]/.test(term)) {
+      sendJson(response, 400, { error: "Forneça term (termo buscado) com 1 a 80 caracteres." });
+      return;
+    }
+
+    try {
+      const analysis = await analyzeWithGemini({
+        geminiKey,
+        term,
+        focus: typeof body.focus === "string" ? body.focus.slice(0, 200) : "",
+        context: body.context && typeof body.context === "object" ? body.context : null,
+        model: typeof body.model === "string" && /^[A-Za-z0-9._-]{1,60}$/.test(body.model) ? body.model : GEMINI_MODEL
+      });
+      sendJson(response, 200, analysis, "no-store");
+    } catch (error) {
+      sendJson(response, 502, {
+        source: "indisponivel",
+        term,
+        note: "Chamada ao Gemini indisponível.",
+        error: error.message
+      });
+    }
+    return;
+  }
+
   if (request.method !== "GET") {
     response.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
     response.end("Method not allowed");
@@ -365,4 +531,5 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, HOST, () => {
   console.log(`DevTrends: site + API REST própria em http://localhost:${PORT}`);
   console.log(` scraping do Hacker News em GET /api/hackernews?tech=react`);
+  console.log(` análise Gemini em POST /api/gemini/analyze  { geminiKey, term }`);
 });

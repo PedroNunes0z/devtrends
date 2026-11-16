@@ -404,6 +404,8 @@ console.log(totals.items[0].count);</code></pre>
             aria-selected="false" tabindex="-1">Resposta</button>
           <button class="api-tab" type="button" role="tab" id="tab-errors" aria-controls="panel-errors"
             aria-selected="false" tabindex="-1">Erros</button>
+          <button class="api-tab" type="button" role="tab" id="tab-gemini" aria-controls="panel-gemini"
+            aria-selected="false" tabindex="-1">Gemini</button>
         </div>
 
         <div class="api-panel nested" role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
@@ -608,6 +610,62 @@ curl --get "http://localhost:8787/api/hackernews" \
             hospedada sem o Node (GitHub Pages estático), <code class="inline-code">source-hackernews.js</code> não
             encontra a API e tenta o scraping via proxies CORS. Para usar o contrato acima, sirva sempre com
             <code class="inline-code">node tools/scraper.mjs</code>.</p>
+        </div>
+
+        <div class="api-panel nested" role="tabpanel" id="panel-gemini" aria-labelledby="tab-gemini" hidden>
+          <h3 class="h2 two-tone">Gemini. <span>Chave e termo enviados na nossa API.</span></h3>
+          <p class="prose">Este endpoint recebe a <strong>chave do Gemini</strong> e o <strong>termo buscado</strong> no
+            corpo da requisição e faz a chamada ao modelo no servidor. A chave não é gravada nem devolvida: apenas
+            <code class="inline-code">keyUsed</code> volta mascarada.</p>
+          <div class="table-wrap" style="margin-top:20px">
+            <table>
+              <thead>
+                <tr>
+                  <th>Método</th>
+                  <th>Caminho</th>
+                  <th>Corpo JSON</th>
+                  <th>Descrição</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono" style="color:var(--fn);font-size:12px">POST</td>
+                  <td class="mono" style="font-size:13px">/api/gemini/analyze</td>
+                  <td><code class="inline-code">geminiKey</code>, <code class="inline-code">term</code></td>
+                  <td>Gera a análise do termo com Gemini via structured output.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="prose" style="margin-top:20px">Opcionais: <code class="inline-code">focus</code>,
+            <code class="inline-code">context</code> (objeto com dados já coletados) e
+            <code class="inline-code">model</code>. Limite do corpo: 64 KB.</p>
+          <figure class="code-block" data-lang="bash" style="margin-top:20px">
+            <figcaption class="code-chrome"><span>curl</span><span class="lang">Bash</span><button
+                class="copy-btn" data-copy type="button"></button></figcaption>
+            <div class="code-body"><pre><code>curl -X POST "http://localhost:8787/api/gemini/analyze" \
+  -H "Content-Type: application/json" \
+  -d '{"geminiKey":"AIza...","term":"React","focus":"adocao"}'</code></pre></div>
+          </figure>
+          <figure class="code-block" data-lang="json" style="margin-top:20px">
+            <figcaption class="code-chrome"><span>resposta 200</span><span class="lang">JSON</span><button
+                class="copy-btn" data-copy type="button"></button></figcaption>
+            <div class="code-body"><pre><code>{
+  "source": "gemini-via-api",
+  "model": "gemini-3.5-flash-lite",
+  "term": "React",
+  "keyUsed": "AIzaSy...1a2b",
+  "indiceVitalidade": 82,
+  "tendencia": "em_alta",
+  "previsao": "Crescimento sustentado no ecossistema.",
+  "resumo": "Comunidade ativa e ampla adoção.",
+  "tags": [{ "label": "ecossistema", "tone": "positivo" }]
+}</code></pre></div>
+          </figure>
+          <p class="timeline-note" style="margin-top:14px"><span class="mono">segurança:</span> use HTTPS em
+            produção, nunca exponha a chave no navegador ou em logs. Erros: <code class="inline-code">400</code>
+            (chave/termo inválidos), <code class="inline-code">405</code> (método incorreto),
+            <code class="inline-code">502</code> (Gemini indisponível).</p>
         </div>
       </section>
 
