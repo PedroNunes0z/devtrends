@@ -13,6 +13,7 @@
     arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
     arrowDown: '<path d="M12 5v14"/><path d="m5 12 7 7 7-7"/>',
     chevronRight: '<path d="m9 18 6-6-6-6"/>',
+    chevronDown: '<path d="m6 9 6 6 6-6"/>',
     arrowUpRight: '<path d="M7 17 17 7"/><path d="M8 7h9v9"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',

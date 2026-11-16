@@ -19,10 +19,11 @@
     githubApi: "https://api.github.com",
     stackexchangeApi: "https://api.stackexchange.com/2.3",
     stackOverflow: "https://stackoverflow.com",
+    devTo: "https://dev.to",
     geminiApi: "https://generativelanguage.googleapis.com/v1beta",
     geminiModel: "gemini-3.5-flash-lite",
     /* Optional dependency-free scraper you run locally (tools/scraper.mjs). */
-    scraperLocal: "http://127.0.0.1:8787/api/stackoverflow",
+    scraperLocal: "http://127.0.0.1:8787/api/devto",
     cacheTtlMinutes: 60,
     timeoutMs: 9000,
     stargazerSamplePages: 2,

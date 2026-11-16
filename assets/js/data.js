@@ -3,7 +3,7 @@
 
    Sources:
      · GitHub REST API            (CORS enabled; optional token)
-     · tools/scraper.mjs          (optional local scraping API, only on localhost)
+     · tools/scraper.mjs          (optional local scraping API of dev.to, only on localhost)
      · Stack Exchange API v2.3    (CORS enabled; fallback for SO totals/sample)
      · Google Gemini              (structured output; key rotation supported)
 
@@ -246,7 +246,7 @@
     });
   }
 
-  /* --- Stack Overflow: optional local scraper + Stack Exchange API ------- */
+  /* --- Stack Overflow (totals) + DEV.TO (optional local scraping) --------- */
   function fromApiQuestions(tech) {
     return cachedJson(seUrl("/questions", {
       tagged: tech.soTag, sort: "creation", order: "desc", pagesize: String(CFG.soSampleSize)
@@ -266,7 +266,7 @@
   function fromLocalScraper(tech) {
     if (!window.DEVTRENDS.isLocal()) return Promise.resolve(null);
     var url = CFG.scraperLocal + "?tag=" + encodeURIComponent(tech.soTag) + "&limit=" + CFG.soSampleSize;
-    return request(url, { timeoutMs: 2500 }).catch(function () { return null; });
+    return request(url, { timeoutMs: 7500 }).catch(function () { return null; });
   }
 
   function apiTotals(tech) {
@@ -324,13 +324,18 @@
         var total = totals ? totals.total : (scraped && scraped.totalQuestions) || 0;
         var unanswered = totals ? totals.unanswered : Math.round(total * sampleRate);
         var notes = [];
-        if (usedScraper) notes.push("Amostra obtida pelo scraper local (tools/scraper.mjs).");
+        if (usedScraper) {
+          notes.push("Amostra de publicações raspada do DEV.TO pelo scraper local (tools/scraper.mjs); 'sem resposta' = publicação sem comentários.");
+          if (scraped.trending && scraped.trending.tagInTrending) {
+            notes.push(" Tag #" + scraped.tag + " está em dev.to/trending (" + (scraped.trending.postsLast7Days || "?") + " posts em 7 dias).");
+          }
+        }
         else if (usedApiSample) notes.push("Scraping indisponível no navegador (CORS/Cloudflare): amostra via Stack Exchange API.");
         else notes.push("Amostra de perguntas recentes indisponível.");
         if (!totals) notes.push("Totais estimados a partir da amostra disponível.");
 
         return Object.assign(base, {
-          source: usedScraper ? "stackoverflow-scrape" : "stackexchange-api",
+          source: usedScraper ? "devto-scrape" : "stackexchange-api",
           totalQuestions: total,
           totalUnanswered: Math.min(unanswered, total),
           unansweredRate: total > 0 ? Math.min(1, unanswered / total) : sampleRate,
@@ -579,6 +584,20 @@
     var series = timeline.filter(function (_, i) { return i % 3 === 0 || i === 11; })
       .map(function (p) { return p.month + ": " + p.stars + " estrelas / " + p.questions + " perguntas" + (p.estimated ? " (estimado)" : " (real)"); }).join("\n");
 
+    /* --- DEV.TO: the scraper the project itself developed (tools/scraper.mjs) --- */
+    var devtoBlock = so && so.source === "devto-scrape" ? [
+      "== DEV.TO (API desenvolvida pelo projeto: tools/scraper.mjs raspando dev.to/, /trending e busca por tag) ==",
+      "Tag mapeada no dev.to: " + so.tag,
+      "Publicações recentes raspadas: " + so.sampleSize,
+      so.recentQuestions && so.recentQuestions.length > 0
+        ? "Publicações recentes: " + so.recentQuestions.slice(0, 5).map(function (q) { return "\"" + q.title.slice(0, 70) + "\" (" + q.votes + " reactions)"; }).join("; ")
+        : "",
+      so.trending && so.trending.tagInTrending
+        ? "A tag #" + so.tag + " está em dev.to/trending com " + so.trending.postsLast7Days + " posts em 7 dias."
+        : "A tag #" + so.tag + " não está em dev.to/trending agora.",
+      "Publicações na home do dev.to com a tag: " + (so.trending && so.trending.tagOnHome ? "sim" : "não")
+    ].filter(Boolean).join("\n") : "";
+
     /* --- User-selected options from the web interface --- */
     var opts = options || {};
     var focusLabel = FOCUS_AREAS[opts.focus] || FOCUS_AREAS.geral;
@@ -598,7 +617,7 @@
 
     var compareBlock = compareTech ? "\n\n== TECNOLOGIA DE COMPARAÇÃO SOLICITADA ==\n" + compareTech.name + " (tag: " + compareTech.soTag + ", repo: " + (compareTech.repo || "n/a") + ")\nConsidere esta tecnologia como referência para a recomendação." : "";
 
-    return "Analise a tecnologia \"" + tech.name + "\".\n\n" + userBlock + "\n\n== GITHUB (API pública) ==\n" + gh + "\n\n== STACK OVERFLOW (API própria / scraping) ==\n" + soBlock + "\n\n== SÉRIE HISTÓRICA (último ponto real) ==\n" + series + compareBlock + "\n\nProduza o JSON completo do schema: indiceVitalidade, tendencia, previsao, resumo, justificativa numérica baseada nos dados, recomendação alinhada ao foco e perfil do usuário, confiança, tags, scoreBreakdown (notas por dimensão), comparativo (pontos fortes, pontos de atenção, alternativas) e projecao (horizonte, risco, momentum).";
+    return "Analise a tecnologia \"" + tech.name + "\".\n\n" + userBlock + "\n\n== GITHUB (API pública) ==\n" + gh + "\n\n== STACK OVERFLOW (API pública) ==\n" + soBlock + (devtoBlock ? "\n\n" + devtoBlock : "") + "\n\n== SÉRIE HISTÓRICA (último ponto real) ==\n" + series + compareBlock + "\n\nProduza o JSON completo do schema: indiceVitalidade, tendencia, previsao, resumo, justificativa numérica baseada nos dados, recomendação alinhada ao foco e perfil do usuário, confiança, tags, scoreBreakdown (notas por dimensão), comparativo (pontos fortes, pontos de atenção, alternativas) e projecao (horizonte, risco, momentum).";
   }
 
   /* --- Gemini call with key rotation --- */

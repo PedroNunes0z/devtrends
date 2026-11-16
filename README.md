@@ -1,10 +1,27 @@
+<div align="center">
+
+<img src="assets/img/devtrends.png" alt="DevTrends Insights" width="200">
+
 # DevTrends Insights
 
-Analisador de popularidade de tecnologias. Cruza dados reais do **GitHub REST API** com o volume de dúvidas e a taxa de resolução do **Stack Overflow**, e pede ao **Google Gemini** um *Índice de Vitalidade* (0–100), uma previsão de tendência e tags de saúde da comunidade.
+**Índice de Vitalidade (0–100) para tecnologias de desenvolvimento**
+
+[![Website](https://img.shields.io/website?url=https%3A%2F%2Fpedronunes0z.github.io%2Fdevtrends%2F&style=for-the-badge&label=%E2%96%B6%20Site%20ao%20vivo)](https://pedronunes0z.github.io/devtrends/)
+[![GitHub stars](https://img.shields.io/github/stars/PedroNunes0z/devtrends?style=for-the-badge&logo=github&color=FFCB6B)](https://github.com/PedroNunes0z/devtrends/stargazers)
+
+[![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-C3E88D?style=flat-square)](#9-licen%C3%A7a)
+[![No dependencies](https://img.shields.io/badge/depend%C3%AAncias-zero-82AAFF?style=flat-square)](https://github.com/PedroNunes0z/devtrends)
+[![Vanilla JS](https://img.shields.io/badge/vanilla-JavaScript%20ES5%2B-F78C6C?style=flat-square&logo=javascript&logoColor=white)](https://github.com/PedroNunes0z/devtrends)
+[![GitHub Pages](https://img.shields.io/badge/deploy-GitHub%20Pages-9BA1AC?style=flat-square&logo=github&logoColor=white)](https://pedronunes0z.github.io/devtrends/)
+[![Gemini](https://img.shields.io/badge/an%C3%A1lise-Google%20Gemini-C792EA?style=flat-square&logo=googlegemini&logoColor=white)](https://ai.google.dev/)
+[![GitHub issues](https://img.shields.io/github/issues/PedroNunes0z/devtrends?style=flat-square&logo=github&color=F07178)](https://github.com/PedroNunes0z/devtrends/issues)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-2EA043?style=flat-square&logo=github&logoColor=white)](https://github.com/PedroNunes0z/devtrends/pulls)
+
+Cruza dados reais do **GitHub REST API** com o volume de dúvidas e a taxa de resolução do **Stack Overflow**, o **scraping do DEV.TO** e pede ao **Google Gemini** um *Índice de Vitalidade* (0–100), uma previsão de tendência e tags de saúde da comunidade. Todo relatório é gerado no clique de **Analisar** — nada estático no caminho.
 
 Feito com **HTML, CSS e JavaScript puro (Vanilla JS)** — sem framework, sem bundler, sem `node_modules` para rodar. Publicado em **GitHub Pages**.
 
-👉 Site: <https://pedronunes0z.github.io/devtrends/>
+</div>
 
 ---
 
@@ -29,15 +46,7 @@ php -S localhost:8080  # PHP
 
 > Abrir `index.html` com `file://` não funciona: `fetch` para APIs externas e módulos relativos exigem HTTP.
 
-### Gerar as páginas novamente (opcional)
-
-As páginas de relatório já vêm prontas em `reports/`. Se alterar o catálogo ou os textos, regenere com Node (sem dependências):
-
-```bash
-node tools/generate-pages.mjs
-```
-
-Isso reescreve `index.html`, os 27 HTMLs de `reports/`, `sitemap.xml`, `robots.txt` e `.nojekyll`.
+Não há etapa de build ou geração estática: `reports/` não existe, todos os relatórios são **gerados no clique do botão "Analisar"** pelo próprio navegador.
 
 ---
 
@@ -88,9 +97,10 @@ Edite `config.local.js` e inclua a tag **antes** de `assets/js/config.js` nos HT
 | `githubApi` | `https://api.github.com` | Base da REST API |
 | `stackexchangeApi` | `https://api.stackexchange.com/2.3` | Base da API de fallback |
 | `stackOverflow` | `https://stackoverflow.com` | Links das perguntas |
+| `devTo` | `https://dev.to` | Base da página raspada pelo scraper |
 | `geminiApi` | `https://generativelanguage.googleapis.com/v1beta` | Base do Gemini |
 | `geminiModel` | `gemini-3.5-flash-lite` | Modelo com *structured output* |
-| `scraperLocal` | `http://127.0.0.1:8787/api/stackoverflow` | Scraper local opcional |
+| `scraperLocal` | `http://127.0.0.1:8787/api/devto` | Scraper local opcional (DEV.TO) |
 | `cacheTtlMinutes` | `60` | TTL do cache de respostas no navegador |
 | `timeoutMs` | `9000` | Timeout de cada chamada |
 | `stargazerSamplePages` | `2` | Páginas de 100 stargazers amostradas |
@@ -102,25 +112,34 @@ Edite `config.local.js` e inclua a tag **antes** de `assets/js/config.js` nos HT
 
 ## 3. API própria de scraping (opcional, local)
 
-O navegador não consegue raspar `stackoverflow.com` (CORS + Cloudflare). No GitHub Pages, o app usa diretamente a **Stack Exchange API**, que libera CORS. Para usar scraping de verdade durante o desenvolvimento:
+O navegador não consegue raspar `stackoverflow.com` (CORS + Cloudflare). No GitHub Pages, o app usa diretamente a **Stack Exchange API**, que libera CORS. A amostra recente, porém, vem do **DEV.TO**, que é server-rendered e sem bloqueio, via scraping local:
 
 ```bash
 node tools/scraper.mjs
-# http://127.0.0.1:8787/api/stackoverflow?tag=reactjs
+# http://127.0.0.1:8787/api/devto?tag=react
 ```
+
+O scraper raspa três páginas do dev.to:
+
+- `https://dev.to/` — home (cards `crayons-story`);
+- `https://dev.to/trending` — cards `trend-card`, usados para sinalizar se a tag está em alta ("N posts in the last 7 days");
+- `https://dev.to/search?q=<tag>` — resultados de busca (a página é client-side, então o mesmo comando cai para a página server-rendered `https://dev.to/t/<tag>`).
 
 O servidor é um `http.createServer` sem dependências, envia `Access-Control-Allow-Origin: *` e devolve:
 
 ```json
 {
-  "source": "stackoverflow-scrape",
-  "tag": "reactjs",
-  "totalQuestions": 473723,
+  "source": "devto-scrape",
+  "tag": "react",
+  "totalQuestions": 30,
   "recentQuestions": [
-    { "title": "...", "url": "...", "answers": 0, "votes": 2, "unanswered": true }
-  ]
+    { "title": "...", "url": "...", "answers": 0, "votes": 42, "unanswered": true }
+  ],
+  "trending": { "tagInTrending": true, "postsLast7Days": 68 }
 }
 ```
+
+Em uma publicação, `votes` são as *reactions*, `answers` são os comentários e `unanswered` significa "sem comentários".
 
 Quando `location.hostname` for `localhost`/`127.0.0.1`, o app tenta esse endpoint primeiro e cai para a Stack Exchange API se ele não responder. Em produção (HTTPS) ele nem tenta, evitando *mixed content*.
 
@@ -149,11 +168,11 @@ O arquivo `.nojekyll` impede que o GitHub ignore pastas/arquivos com `_`. `sitem
 
 ## 5. SEO
 
-- `index.html` + **27 páginas estáticas** em `reports/<slug>.html` — conteúdo legível por crawlers sem JavaScript.
-- `<title>`, `meta description`, `canonical`, Open Graph, Twitter Card por página.
-- **JSON-LD**: `WebSite` + `SearchAction`, `SoftwareApplication`, `FAQPage`, `Dataset` e `BreadcrumbList`.
-- `sitemap.xml` com `lastmod` / `changefreq` / `priority`, `robots.txt`, `og-default.png` 1200×630, `favicon.svg`.
-- Cada tecnologia tem URL própria e compartilhável; o título é atualizado com a nota real após a consulta.
+- página única (`index.html`): os relatórios são dinâmicos, gerados no clique de **Analisar**, com deep links compartilháveis em `?tech=<slug>`.
+- `<title>`, `meta description`, `canonical`, Open Graph, Twitter Card.
+- **JSON-LD**: `WebSite` + `SearchAction` (que aponta para `?tech={search_term_string}`), `SoftwareApplication` e `FAQPage`.
+- `sitemap.xml` (agora só com a raiz), `robots.txt`, `og-default.png` 1200×630, `favicon.svg`.
+- `<title>` da página é atualizado com a nota real após a consulta ao Gemini.
 
 ---
 
@@ -190,8 +209,7 @@ Outras decisões de interface:
 ## 7. Estrutura
 
 ```
-index.html                  landing (hero, quickstart, amostra real, pipeline, FAQ)
-reports/*.html              27 páginas estáticas de relatório (SEO)
+index.html                  página única (hero, análise dinâmica, vídeo, pipeline, FAQ)
 assets/css/styles.css       Terminal Dark em CSS puro
 assets/js/
   config.js                 configuração pública + localStorage
@@ -201,12 +219,11 @@ assets/js/
   highlight.js              tokenizador real + botão de copiar
   data.js                   GitHub / Stack Exchange / scraper / Gemini / heurística / timeline
   widgets.js                cartão de tendência, gauge, tags, gráfico de barras, projeção, comparativo, tabela, proveniência
-  app.js                    bootstrap, navegação, painel Config, rodízio de chaves, opções de análise
-assets/img/                 favicon.svg, og-default.png
+  app.js                    bootstrap, botão "Analisar" (relatório on demand), painel Config, rodízio de chaves, opções de análise
+assets/img/                 favicon.svg, og-default.png, Dev_Logo.webp
+assets/video/               devtrends.mp4 (vídeo de demonstração exibido no site)
 tools/
-  generate-pages.mjs        gera HTMLs + sitemap (Node, sem dependências)
-  scraper.mjs               API de scraping local opcional (Node, sem dependências)
-  og-template.html          molde usado para gerar og-default.png
+  scraper.mjs               API de scraping local do DEV.TO (Node, sem dependências)
 config.example.js           modelo de config local
 SKILL.md                    sistema de design de referência
 ```
@@ -216,7 +233,7 @@ SKILL.md                    sistema de design de referência
 ## 8. Honestidade dos dados e uso do Gemini
 
 - Estrelas, forks, issues, watchers e datas: **GitHub REST API**.
-- Total de perguntas e total sem resposta: **Stack Exchange API** (ou HTML do scraper local).
+- Total de perguntas e total sem resposta: **Stack Exchange API**; amostra recente: **scraping do DEV.TO** (tools/scraper.mjs).
 - Frequência de perguntas sem resposta: amostra das perguntas recentes (scraping ou API).
 - Histórico de 12 meses: **estimado** a partir dos totais reais de hoje, da idade do repositório e da velocidade real dos últimos stargazers. O gráfico diz isso explicitamente.
 - Sem chaves Gemini: nota, tendência e tags vêm de uma **heurística local**, identificada na interface.

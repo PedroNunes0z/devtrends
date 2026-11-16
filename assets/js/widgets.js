@@ -19,6 +19,28 @@
   var ICONS = window.DEVTRENDS_ICONS;
   var esc = window.DEVTRENDS_HIGHLIGHT.esc;
 
+  function getHome() {
+    return document.body.getAttribute("data-home") || ".";
+  }
+
+  function geminiLogo(size, extraStyle) {
+    var s = size || 16;
+    var st = extraStyle ? ' style="' + extraStyle + '"' : '';
+    return '<img class="gemini-icon-img" src="' + getHome() + '/assets/img/Google_Gemini_icon.svg" alt="Google Gemini" width="' + s + '" height="' + s + '"' + st + '>';
+  }
+
+  function soLogo(height, extraStyle) {
+    var h = height || 13;
+    var st = extraStyle ? ' style="' + extraStyle + '"' : '';
+    return '<img class="so-logo-img" src="' + getHome() + '/assets/img/Stack_Overflow_logo.svg" alt="Stack Overflow" height="' + h + '"' + st + '>';
+  }
+
+  function devLogo(height, extraStyle) {
+    var h = height || 13;
+    var st = extraStyle ? ' style="' + extraStyle + '"' : '';
+    return '<img class="so-logo-img" src="' + getHome() + '/assets/img/Dev_Logo.webp" alt="DEV Community" height="' + h + '"' + st + '>';
+  }
+
   function ticker(value, extra) {
     if (value === null || value === undefined || !isFinite(value)) return "&mdash;";
     var attrs = extra || "";
@@ -31,6 +53,7 @@
     "github-api": "GitHub REST API",
     "github-html": "GitHub página pública",
     "stackoverflow-scrape": "scraping Stack Overflow",
+    "devto-scrape": "scraping DEV.TO",
     "stackexchange-api": "Stack Exchange API",
     demo: "dados de demonstração",
     "heuristica-local": "heurística local",
@@ -90,8 +113,8 @@
     return '<div class="frame trend-card">' +
       '<div class="panel trend-inner">' +
         '<div>' +
-          '<div class="trend-meta"><span>relatório / ' + esc(r.tech.slug) + '</span><span>·</span><span>' +
-            (ai.source === "gemini" ? "gemini: " + esc(ai.model || "") : "heurística local") + '</span></div>' +
+          '<div class="trend-meta"><span>relatório / ' + esc(r.tech.slug) + '</span><span>·</span><span style="display:inline-flex;align-items:center;gap:6px">' +
+            (ai.source === "gemini" ? geminiLogo(14) + '<span>gemini: ' + esc(ai.model || "") + '</span>' : '<span>heurística local</span>') + '</span></div>' +
           '<h2 class="trend-name">' + esc(r.tech.name) + '</h2>' +
           '<div style="margin-top:20px">' +
             '<span class="trend-badge ' + t.cls + '">' + icon(t.icon, "icon-sm") + t.label + '</span>' +
@@ -100,7 +123,7 @@
           '<p class="trend-resume">' + esc(ai.resumo) + '</p>' +
           '<dl class="trend-stats">' +
             '<div><dt>GitHub ' + icon("star", "icon-sm") + '</dt><dd>' + ticker(g ? g.repo.stars : null) + '</dd></div>' +
-            '<div><dt>Perguntas SO</dt><dd>' + ticker(so ? so.totalQuestions : null) + '</dd></div>' +
+            '<div><dt style="display:inline-flex;align-items:center;gap:6px"><span>Perguntas</span> ' + soLogo(11) + '</dt><dd>' + ticker(so ? so.totalQuestions : null) + '</dd></div>' +
             '<div><dt>Sem resposta</dt><dd>' + ticker(so ? so.unansweredRate * 100 : null, 'data-decimals="1" data-suffix="%"') + '</dd></div>' +
           '</dl>' +
           '<div class="confidence"><span>confiança ' + ticker(conf, 'data-suffix="%"') + '</span>' +
@@ -183,13 +206,13 @@
     }).join("");
     var altEl = (comp.alternativas || []).map(function (s) {
       var altTech = D.resolveTech(s);
-      var href = altTech.slug ? (document.body.getAttribute("data-home") || ".") + "/reports/" + altTech.slug + ".html" : "#";
-      return '<a class="alt-chip" href="' + href + '">' + icon("arrowRight", "icon-sm") + esc(s) + '</a>';
+      if (!altTech || !altTech.slug) return "";
+      return '<a class="alt-chip" href="#analise" data-analyze-dispatch="' + esc(s) + '">' + icon("arrowRight", "icon-sm") + esc(s) + '</a>';
     }).join("");
 
     return '<section class="section" aria-labelledby="comp-h">' +
       '<div class="section-head"><h2 class="h2 headline two-tone" id="comp-h">Comparativo. <span>Pontos fortes, pontos de atenção e alternativas.</span></h2>' +
-      '<div class="detail"><p>Análise estruturada gerada pelo Gemini a partir das métricas coletadas.</p><p class="index">2.3 Comparativo →</p></div></div>' +
+      '<div class="detail"><p style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>Análise estruturada gerada pelo</span> ' + geminiLogo(14) + ' <span>Gemini a partir das métricas coletadas.</span></p><p class="index">2.3 Comparativo →</p></div></div>' +
       '<div class="comp-grid" style="margin-top:28px">' +
         '<div class="panel comp-col">' +
           '<h3 class="comp-title pos">' + icon("arrowUp", "icon-sm") + ' Pontos fortes</h3>' +
@@ -216,10 +239,10 @@
         '<h3 class="split-label">Tags de saúde</h3>' +
         '<ul class="health-tags">' + tags + '</ul>' +
         '<dl class="kv">' +
-          '<div class="kv-row"><dt>Modelo</dt><dd>' + esc(r.ai.source === "gemini" ? r.ai.model : "heurística local") + '</dd></div>' +
+          '<div class="kv-row"><dt>Modelo</dt><dd style="display:inline-flex;align-items:center;gap:6px">' + (r.ai.source === "gemini" ? geminiLogo(14) : "") + '<span>' + esc(r.ai.source === "gemini" ? r.ai.model : "heurística local") + '</span></dd></div>' +
           '<div class="kv-row"><dt>Tendência</dt><dd>' + esc(r.ai.tendencia) + '</dd></div>' +
           '<div class="kv-row"><dt>Confiança</dt><dd>' + ticker(Math.round(r.ai.confianca * 100), 'data-suffix="%"') + '</dd></div>' +
-          (r.ai.keyUsed ? '<div class="kv-row"><dt>Chave Gemini</dt><dd>' + esc(r.ai.keyUsed) + '</dd></div>' : "") +
+          (r.ai.keyUsed ? '<div class="kv-row"><dt>Chave Gemini</dt><dd style="display:inline-flex;align-items:center;gap:6px">' + geminiLogo(14) + '<span>' + esc(r.ai.keyUsed) + '</span></dd></div>' : "") +
         '</dl>' +
       '</div>' +
       '<div class="split-cell">' +
@@ -276,7 +299,7 @@
         '<figcaption class="code-chrome"><span>timeline.js</span>' +
           '<span class="legend">' +
             '<span class="legend-item"><i class="rule" style="background:#82AAFF"></i> GitHub ' + (hasGh ? ticker(last.stars) : "indisponível") + '</span>' +
-            '<span class="legend-item"><i class="rule" style="background:#C3E88D"></i> SO ' + ticker(last.questions) + '</span>' +
+            '<span class="legend-item"><i class="rule" style="background:#C3E88D"></i> ' + soLogo(11) + ' ' + ticker(last.questions) + '</span>' +
           '</span><span class="lang">12 meses · pt-BR</span></figcaption>' +
         '<div class="code-body" style="padding:12px"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Evolução estimada de estrelas e perguntas em 12 meses">' +
           grid +
@@ -329,17 +352,21 @@
   function questions(r) {
     var list = r.stackoverflow ? r.stackoverflow.recentQuestions : [];
     if (!list.length) return "";
+    var isDevto = r.stackoverflow.source === "devto-scrape";
+    var logo = isDevto ? devLogo(16) : soLogo(16);
     var items = list.slice(0, 8).map(function (q) {
       return '<li class="question-row">' +
-        '<span class="state ' + (q.unanswered ? "open" : "answered") + '">' + (q.unanswered ? "sem resposta" : q.answers + " resp.") + '</span>' +
+        '<span class="state ' + (q.unanswered ? "open" : "answered") + '">' + (q.unanswered
+          ? (isDevto ? "sem comentários" : "sem resposta")
+          : (isDevto ? q.answers + " coment." : q.answers + " resp.")) + '</span>' +
         '<a href="' + esc(q.url) + '" target="_blank" rel="noopener noreferrer">' + esc(q.title) + '</a>' +
-        '<span class="votes">' + q.votes + ' votos</span>' +
+        '<span class="votes">' + q.votes + (isDevto ? ' reactions' : ' votos') + '</span>' +
         (q.askedAt ? '<span class="date">' + new Date(q.askedAt).toLocaleDateString("pt-BR") + '</span>' : "") +
         '</li>';
     }).join("");
     return '<section class="section" aria-labelledby="questions-h">' +
-      '<div class="section-head"><h2 class="h2 headline two-tone" id="questions-h">Amostra raspada. <span>As perguntas mais recentes da tag.</span></h2>' +
-      '<div class="detail"><p>' + list.length + ' perguntas coletadas para medir a frequência de dúvidas sem resposta.</p><p class="index">6.0 Amostra →</p></div></div>' +
+      '<div class="section-head"><h2 class="h2 headline two-tone" id="questions-h">Amostra ' + logo + '. <span>' + (isDevto ? "As publicações mais recentes da tag." : "As perguntas mais recentes da tag.") + '</span></h2>' +
+      '<div class="detail"><p style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>' + list.length + (isDevto ? ' publicações coletadas no' : ' perguntas coletadas no') + '</span> ' + logo + ' <span>para medir a ' + (isDevto ? 'frequência de publicações sem discussão.' : 'frequência de dúvidas sem resposta.') + '</span></p><p class="index">6.0 Amostra →</p></div></div>' +
       '<ul class="panel questions" style="margin-top:28px">' + items + '</ul></section>';
   }
 
@@ -383,7 +410,7 @@
       '<div class="source-links">' +
         (ghWebLink ? '<a class="btn-link" href="' + ghWebLink + '" target="_blank" rel="noopener noreferrer">GitHub repo ' + icon("arrowUpRight", "icon-sm") + '</a>' : '') +
         (ghApiLink ? '<a class="btn-link" href="' + ghApiLink + '" target="_blank" rel="noopener noreferrer">GitHub REST ' + icon("arrowUpRight", "icon-sm") + '</a>' : '') +
-        '<a class="btn-link" href="' + soLink + '" target="_blank" rel="noopener noreferrer">Stack Overflow ' + icon("arrowUpRight", "icon-sm") + '</a>' +
+        '<a class="btn-link" href="' + soLink + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px">' + soLogo(13) + ' ' + icon("arrowUpRight", "icon-sm") + '</a>' +
       '</div></aside></section>';
   }
 
@@ -403,17 +430,5 @@
     window.DEVTRENDS_HIGHLIGHT.mount(container);
   }
 
-  function trendOnly(report) {
-    var tags = report.ai.tags.slice(0, 4).map(function (tag) {
-      var tone = tag.tone === "positivo" ? "pos" : tag.tone === "atencao" ? "warn" : "neu";
-      return '<li class="health-tag ' + tone + '"><span aria-hidden="true">+</span><span>#' + esc(tag.label) + '</span></li>';
-    }).join("");
-    return trendCard(report) +
-      '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:16px">' +
-        '<span class="mono" style="font-size:12px;color:var(--tertiary)">tags:</span>' +
-        '<ul class="health-tags">' + tags + '</ul>' +
-      '</div>';
-  }
-
-  window.DEVTRENDS_WIDGETS = { render: render, trendOnly: trendOnly, ticker: ticker, gauge: gauge };
+  window.DEVTRENDS_WIDGETS = { render: render, ticker: ticker, gauge: gauge };
 })();

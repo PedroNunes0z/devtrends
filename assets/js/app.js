@@ -1,10 +1,16 @@
 /* =========================================================================
    app.js — bootstrap: navigation, icons, config panel, key rotation panel,
-   user option controls, live sample, report.
+   user option controls, on-demand report.
 
-   User-selected options (focus, depth, experience, comparison target) are
-   captured in the UI and passed into getInsights(), which includes them in
-   the Gemini prompt alongside GitHub and Stack Overflow data.
+   There are no static report pages: every report is generated when the user
+   clicks "Analisar". The hero form, suggestion chips, catalog links and the
+   "Ver Vue.js" CTA all call analyze() below, which renders the full report
+   into the #analise section of index.html. Deep links (?tech=react) run the
+   same flow on load.
+
+   User-selected options (focus, depth, experience) are captured in the UI
+   and passed into getInsights(), which includes them in the Gemini prompt
+   alongside GitHub, Stack Overflow and DEV.TO scraper data.
 
    Gemini API keys are managed in a dedicated rotation panel with add/remove,
    active-key indicator, and call/error statistics.
@@ -16,9 +22,8 @@
   var W = window.DEVTRENDS_WIDGETS;
   var ICONS = window.DEVTRENDS_ICONS;
   var H = window.DEVTRENDS_HIGHLIGHT;
-  var home = document.body.getAttribute("data-home") || ".";
 
-  function reportUrl(slug) { return home + "/reports/" + slug + ".html"; }
+  var currentAnalysis = null;
 
   /* --- Icons -------------------------------------------------------------- */
   function injectIcons(root) {
@@ -44,15 +49,15 @@
     });
   }
 
-  /* --- Search ------------------------------------------------------------- */
+  /* --- Search and dynamic analysis triggers ------------------------------- */
   function wireSearch(root) {
     Array.prototype.forEach.call((root || document).querySelectorAll("[data-search-form]"), function (form) {
       form.addEventListener("submit", function (event) {
         event.preventDefault();
         var input = form.querySelector("input[name=tech]");
-        var slug = D.slugify(input ? input.value : "");
-        if (!slug) { if (input) input.focus(); return; }
-        location.href = reportUrl(slug);
+        var name = input ? input.value : "";
+        if (!D.slugify(name)) { if (input) input.focus(); return; }
+        analyze(name);
       });
     });
     /* ONLY wire actual chips/buttons — NEVER document.body */
@@ -65,7 +70,19 @@
         var form = chip.closest("[data-search-scope]") || document;
         var input = form.querySelector("input[name=tech]");
         if (input) input.value = name;
-        location.href = reportUrl(D.slugify(name));
+        analyze(name);
+      });
+    });
+    /* Catalog rows, propsal CTA and footer quick links */
+    Array.prototype.forEach.call((root || document).querySelectorAll("[data-analyze]"), function (link) {
+      if (link.__wiredAnalyze) return;
+      link.__wiredAnalyze = true;
+      link.addEventListener("click", function (event) {
+        event.preventDefault();
+        var name = link.getAttribute("data-analyze");
+        var input = document.querySelector("#tech-query");
+        if (input) input.value = name;
+        analyze(name);
       });
     });
   }
@@ -227,26 +244,31 @@
     return '<div class="status-line">' + (spinning ? '<span class="spinner"></span>' : ICONS.get("info", "icon-sm")) + '<span>' + H.esc(text) + '</span></div>';
   }
 
-  /* --- Home: real live sample -------------------------------------------- */
-  function hydrateHome() {
-    var target = document.getElementById("live-sample");
-    if (!target) return;
-    target.innerHTML = status("Consultando GitHub, Stack Overflow e Gemini…", true);
-    D.getInsights("React", collectOptions()).then(function (report) {
-      target.innerHTML = W.trendOnly(report);
-      window.DEVTRENDS_TICKER.mount(target);
-      H.mount(target);
-      injectIcons(target);
-    }).catch(function (error) {
-      target.innerHTML = status("Não foi possível carregar a amostra: " + error.message, false);
-    });
+  /* --- On-demand report (index.html#analise) ------------------------------- */
+  function techFromUrl() {
+    var fromQuery = new URLSearchParams(location.search).get("tech");
+    if (fromQuery) return fromQuery;
+    if (location.hash.indexOf("#tech=") === 0) return decodeURIComponent(location.hash.slice(6));
+    return null;
   }
 
-  /* --- Report page -------------------------------------------------------- */
-  function hydrateReport() {
+  function placeholderReport() {
     var target = document.getElementById("report");
-    var slug = document.body.getAttribute("data-tech") || "";
-    if (!target || !slug) return;
+    if (!target) return;
+    if (target.innerHTML.trim()) return;
+    target.innerHTML = status("Escolha uma tecnologia no topo e clique em “Analisar”. O relatório é construído na hora das chamadas reais das APIs.", false);
+  }
+
+  function analyze(inputName) {
+    var slug = D.slugify(inputName);
+    if (!slug) return;
+    var target = document.getElementById("report");
+    if (!target) return;
+
+    currentAnalysis = slug;
+    try {
+      history.replaceState(null, "", location.pathname + "?tech=" + encodeURIComponent(slug) + location.hash);
+    } catch (e) { /* file:// or restricted */ }
 
     var currentRequestId = 0;
 
@@ -292,12 +314,191 @@
     }
 
     wireConfig(load);
-
-    /* Wire option change listeners for re-analysis */
     wireOptionControls(load);
-
+    wireCustomSelects(document);
     load();
+
+    var section = document.getElementById("analise");
+    if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+
+  /* --- Custom Dropdowns ---------------------------------------------------- */
+  function wireCustomSelects(root) {
+    var scope = root || document;
+
+    /* Auto-wrap any unenhanced native selects with data-option-control */
+    var nativeSelects = scope.querySelectorAll("select[data-option-control]");
+    Array.prototype.forEach.call(nativeSelects, function (sel) {
+      if (sel.closest(".custom-select") || sel.__enhancedSelect) return;
+      sel.__enhancedSelect = true;
+
+      var parent = sel.parentNode;
+      var wrapper = document.createElement("div");
+      wrapper.className = "custom-select";
+      wrapper.setAttribute("data-custom-select", "");
+      parent.insertBefore(wrapper, sel);
+      wrapper.appendChild(sel);
+      sel.classList.add("custom-select-native");
+      sel.setAttribute("tabindex", "-1");
+      sel.setAttribute("aria-hidden", "true");
+
+      var currentOpt = sel.options[sel.selectedIndex] || sel.options[0];
+      var currentLabel = currentOpt ? currentOpt.textContent : "";
+
+      var trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.className = "custom-select-trigger";
+      trigger.setAttribute("aria-haspopup", "listbox");
+      trigger.setAttribute("aria-expanded", "false");
+      trigger.innerHTML = '<span class="custom-select-value">' + esc(currentLabel) + '</span>' +
+        '<span class="custom-select-arrow" aria-hidden="true">' + ICONS.get("chevronDown", "icon-sm") + '</span>';
+
+      var dropdown = document.createElement("div");
+      dropdown.className = "custom-select-dropdown";
+      dropdown.setAttribute("role", "listbox");
+      dropdown.setAttribute("tabindex", "-1");
+
+      var optionsWrap = document.createElement("div");
+      optionsWrap.className = "custom-select-options";
+
+      Array.prototype.forEach.call(sel.options, function (opt) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "custom-select-option" + (opt.selected ? " selected" : "");
+        btn.setAttribute("role", "option");
+        btn.setAttribute("data-value", opt.value);
+        btn.setAttribute("aria-selected", opt.selected ? "true" : "false");
+        btn.innerHTML = '<span class="custom-select-option-label">' + esc(opt.textContent) + '</span>' +
+          '<span class="custom-select-option-check" aria-hidden="true">' + ICONS.get("check", "icon-sm") + '</span>';
+        optionsWrap.appendChild(btn);
+      });
+
+      dropdown.appendChild(optionsWrap);
+      wrapper.appendChild(trigger);
+      wrapper.appendChild(dropdown);
+    });
+
+    /* Wire all .custom-select elements in scope */
+    var customSelects = scope.querySelectorAll(".custom-select[data-custom-select]");
+    Array.prototype.forEach.call(customSelects, function (container) {
+      if (container.__wiredSelect) return;
+      container.__wiredSelect = true;
+
+      var trigger = container.querySelector(".custom-select-trigger");
+      var valueSpan = container.querySelector(".custom-select-value");
+      var nativeSelect = container.querySelector("select");
+      var options = container.querySelectorAll(".custom-select-option");
+
+      function open() {
+        closeAllCustomSelects();
+        container.classList.add("open");
+        if (trigger) trigger.setAttribute("aria-expanded", "true");
+        var selectedOpt = container.querySelector(".custom-select-option.selected");
+        if (selectedOpt) {
+          try { selectedOpt.scrollIntoView({ block: "nearest" }); } catch (e) {}
+        }
+      }
+
+      function close() {
+        container.classList.remove("open");
+        if (trigger) trigger.setAttribute("aria-expanded", "false");
+      }
+
+      function selectValue(val) {
+        if (nativeSelect) {
+          nativeSelect.value = val;
+          nativeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        syncFromNative();
+        close();
+        if (trigger) trigger.focus();
+      }
+
+      function syncFromNative() {
+        if (!nativeSelect) return;
+        var currentVal = nativeSelect.value;
+        Array.prototype.forEach.call(options, function (opt) {
+          var isMatch = opt.getAttribute("data-value") === currentVal;
+          opt.classList.toggle("selected", isMatch);
+          opt.setAttribute("aria-selected", isMatch ? "true" : "false");
+          if (isMatch && valueSpan) {
+            var labelEl = opt.querySelector(".custom-select-option-label");
+            valueSpan.textContent = labelEl ? labelEl.textContent : opt.textContent;
+          }
+        });
+      }
+
+      if (trigger) {
+        trigger.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (container.classList.contains("open")) {
+            close();
+          } else {
+            open();
+          }
+        });
+
+        trigger.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            if (!container.classList.contains("open")) {
+              open();
+            } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+              var optsArr = Array.prototype.slice.call(options);
+              var activeIdx = optsArr.findIndex(function (o) { return o.classList.contains("selected"); });
+              var nextIdx = e.key === "ArrowDown" ? (activeIdx + 1) % optsArr.length : (activeIdx - 1 + optsArr.length) % optsArr.length;
+              selectValue(optsArr[nextIdx].getAttribute("data-value"));
+            }
+          } else if (e.key === "Escape") {
+            close();
+          }
+        });
+      }
+
+      Array.prototype.forEach.call(options, function (opt) {
+        opt.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var val = opt.getAttribute("data-value");
+          selectValue(val);
+        });
+      });
+
+      if (nativeSelect) {
+        nativeSelect.addEventListener("change", syncFromNative);
+      }
+    });
+  }
+
+  function closeAllCustomSelects() {
+    var openSelects = document.querySelectorAll(".custom-select.open");
+    Array.prototype.forEach.call(openSelects, function (cs) {
+      cs.classList.remove("open");
+      var tr = cs.querySelector(".custom-select-trigger");
+      if (tr) tr.setAttribute("aria-expanded", "false");
+    });
+  }
+
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest(".custom-select")) {
+      closeAllCustomSelects();
+    }
+    var dispatch = e.target.closest("[data-analyze-dispatch]");
+    if (dispatch) {
+      e.preventDefault();
+      var name = dispatch.getAttribute("data-analyze-dispatch");
+      var input = document.querySelector("#tech-query");
+      if (input) input.value = name;
+      analyze(name);
+    }
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      closeAllCustomSelects();
+    }
+  });
 
   /* --- Wire option controls to trigger reload on change --- */
   function wireOptionControls(onChange) {
@@ -315,13 +516,21 @@
     injectIcons(document);
     wireCommandCopy();
     wireSearch(document);
+    wireCustomSelects(document);
     H.mount(document);
     window.DEVTRENDS_TICKER.mount(document);
+    wireConfig(function () {
+      if (currentAnalysis) analyze(currentAnalysis);
+    });
 
-    var page = document.body.getAttribute("data-page");
-    if (page === "home") { wireConfig(hydrateHome); hydrateHome(); }
-    else if (page === "report") hydrateReport();
-    else wireConfig();
+    var initial = techFromUrl();
+    if (initial) {
+      var input = document.querySelector("#tech-query");
+      if (input) input.value = initial;
+      analyze(initial);
+    } else {
+      placeholderReport();
+    }
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
