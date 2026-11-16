@@ -52,9 +52,9 @@
   var SOURCE_LABEL = {
     "github-api": "GitHub REST API",
     "github-html": "GitHub página pública",
-    "stackoverflow-scrape": "scraping Stack Overflow",
-    "devto-scrape": "scraping DEV.TO",
     "stackexchange-api": "Stack Exchange API",
+    "devto-scrape": "scraping DEV.TO (tools/scraper.mjs)",
+    "devto-api": "DEV.TO API pública",
     demo: "dados de demonstração",
     "heuristica-local": "heurística local",
     gemini: "Gemini",
@@ -352,22 +352,47 @@
   function questions(r) {
     var list = r.stackoverflow ? r.stackoverflow.recentQuestions : [];
     if (!list.length) return "";
-    var isDevto = r.stackoverflow.source === "devto-scrape";
-    var logo = isDevto ? devLogo(16) : soLogo(16);
     var items = list.slice(0, 8).map(function (q) {
       return '<li class="question-row">' +
-        '<span class="state ' + (q.unanswered ? "open" : "answered") + '">' + (q.unanswered
-          ? (isDevto ? "sem comentários" : "sem resposta")
-          : (isDevto ? q.answers + " coment." : q.answers + " resp.")) + '</span>' +
+        '<span class="state ' + (q.unanswered ? "open" : "answered") + '">' + (q.unanswered ? "sem resposta" : q.answers + " resp.") + '</span>' +
         '<a href="' + esc(q.url) + '" target="_blank" rel="noopener noreferrer">' + esc(q.title) + '</a>' +
-        '<span class="votes">' + q.votes + (isDevto ? ' reactions' : ' votos') + '</span>' +
+        '<span class="votes">' + q.votes + ' votos</span>' +
         (q.askedAt ? '<span class="date">' + new Date(q.askedAt).toLocaleDateString("pt-BR") + '</span>' : "") +
         '</li>';
     }).join("");
     return '<section class="section" aria-labelledby="questions-h">' +
-      '<div class="section-head"><h2 class="h2 headline two-tone" id="questions-h">Amostra ' + logo + '. <span>' + (isDevto ? "As publicações mais recentes da tag." : "As perguntas mais recentes da tag.") + '</span></h2>' +
-      '<div class="detail"><p style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>' + list.length + (isDevto ? ' publicações coletadas no' : ' perguntas coletadas no') + '</span> ' + logo + ' <span>para medir a ' + (isDevto ? 'frequência de publicações sem discussão.' : 'frequência de dúvidas sem resposta.') + '</span></p><p class="index">6.0 Amostra →</p></div></div>' +
+      '<div class="section-head"><h2 class="h2 headline two-tone" id="questions-h">Amostra ' + soLogo(16) + '. <span>As perguntas mais recentes da tag.</span></h2>' +
+      '<div class="detail"><p style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>' + list.length + ' perguntas coletadas no</span> ' + soLogo(12) + ' <span>via Stack Exchange API, para medir a frequência de dúvidas sem resposta.</span></p><p class="index">6.0 Amostra →</p></div></div>' +
       '<ul class="panel questions" style="margin-top:28px">' + items + '</ul></section>';
+  }
+
+  /* --- DEV.TO: project's own scraping + sample ------------------------------ */
+  function devtoSection(r) {
+    var dt = r.devto ? r.devto : null;
+    if (!dt) return "";
+    var process = 'Processo: <code class="inline-code">' + esc(dt.homeUrl || "https://dev.to/") + '</code> (publicações recentes) · ' +
+      '<code class="inline-code">/trending</code> (tags em alta, posts em 7 dias) · ' +
+      '<code class="inline-code">/search?q=' + esc(dt.tag) + '</code> (busca; cai para <code class="inline-code">/t/' + esc(dt.tag) + '</code>) — via <a href="' + esc(dt.tagUrl) + '" target="_blank" rel="noopener noreferrer">' + esc(dt.tagUrl) + '</a>';
+    var trendingTag = dt.trending && dt.trending.tagInTrending
+      ? '<li class="health-tag pos"><span aria-hidden="true">+</span><span>#' + esc(dt.tag) + ' em alta no trending · ' + (dt.trending.postsLast7Days || "?") + ' posts/7d</span></li>'
+      : "";
+    var list = (dt.recentQuestions || []).slice(0, 8);
+    var body = list.length
+      ? '<ul class="panel questions" style="margin-top:28px">' + list.map(function (p) {
+          return '<li class="question-row">' +
+            '<span class="state ' + (p.unanswered ? "open" : "answered") + '">' + (p.unanswered ? "sem comentários" : p.answers + " coment.") + '</span>' +
+            '<a href="' + esc(p.url) + '" target="_blank" rel="noopener noreferrer">' + esc(p.title) + '</a>' +
+            '<span class="votes">' + p.votes + ' reactions</span>' +
+            (p.askedAt ? '<span class="date">' + new Date(p.askedAt).toLocaleDateString("pt-BR") + '</span>' : "") +
+            '</li>';
+        }).join("") + '</ul>'
+      : '<div class="status-line" style="margin-top:28px">' + icon("info", "icon-sm") + '<span>' + esc(dt.note || "Nenhuma publicação recuperada do DEV.TO.") + '</span></div>';
+    return '<section class="section" aria-labelledby="devto-h">' +
+      '<div class="section-head"><h2 class="h2 headline two-tone" id="devto-h">DEV.TO ' + devLogo(16) + '. <span>' + (dt.source === "devto-scrape" ? "Raspado na hora pelo scraper do projeto." : "Publicações da tag, via API pública do dev.to.") + '</span></h2>' +
+      '<div class="detail"><p style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>' + process + '</span></p><p class="index">7.0 DEV.TO →</p></div></div>' +
+      (trendingTag ? '<ul class="health-tags" style="margin-top:16px">' + trendingTag + '</ul>' : "") +
+      body +
+      '</section>';
   }
 
   function githubNotice(r) {
@@ -402,6 +427,7 @@
     var ghApiLink = ghRepoName ? window.DEVTRENDS.config.githubApi + '/repos/' + esc(ghRepoName) : '';
     var ghWebLink = ghRepoName ? 'https://github.com/' + esc(ghRepoName) : '';
     var soLink = r.stackoverflow && r.stackoverflow.tagUrl ? esc(r.stackoverflow.tagUrl) : '#';
+    var dtLink = r.devto && r.devto.tagUrl ? esc(r.devto.tagUrl) : '';
 
     return '<section class="section"><aside class="nested source-notice" aria-label="Proveniência dos dados">' +
       '<div class="source-badges"><span class="mono" style="font-size:12px;color:var(--tertiary)">proveniência:</span>' + badges +
@@ -411,6 +437,7 @@
         (ghWebLink ? '<a class="btn-link" href="' + ghWebLink + '" target="_blank" rel="noopener noreferrer">GitHub repo ' + icon("arrowUpRight", "icon-sm") + '</a>' : '') +
         (ghApiLink ? '<a class="btn-link" href="' + ghApiLink + '" target="_blank" rel="noopener noreferrer">GitHub REST ' + icon("arrowUpRight", "icon-sm") + '</a>' : '') +
         '<a class="btn-link" href="' + soLink + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px">' + soLogo(13) + ' ' + icon("arrowUpRight", "icon-sm") + '</a>' +
+        (dtLink ? '<a class="btn-link" href="' + dtLink + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px">' + devLogo(13) + ' ' + icon("arrowUpRight", "icon-sm") + '</a>' : '') +
       '</div></aside></section>';
   }
 
@@ -425,6 +452,7 @@
       timeline(report) +
       metrics(report) +
       questions(report) +
+      devtoSection(report) +
       sources(report);
     window.DEVTRENDS_TICKER.mount(container);
     window.DEVTRENDS_HIGHLIGHT.mount(container);

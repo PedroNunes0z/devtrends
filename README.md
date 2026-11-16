@@ -17,7 +17,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/PedroNunes0z/devtrends?style=flat-square&logo=github&color=F07178)](https://github.com/PedroNunes0z/devtrends/issues)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-2EA043?style=flat-square&logo=github&logoColor=white)](https://github.com/PedroNunes0z/devtrends/pulls)
 
-Cruza dados reais do **GitHub REST API** com o volume de dúvidas e a taxa de resolução do **Stack Overflow**, o **scraping do DEV.TO** e pede ao **Google Gemini** um *Índice de Vitalidade* (0–100), uma previsão de tendência e tags de saúde da comunidade. Todo relatório é gerado no clique de **Analisar** — nada estático no caminho.
+Cruza dados reais do **GitHub REST API** com o volume de dúvidas e a taxa de resolução do **Stack Overflow**, as publicações da tag no **DEV.TO** (API pública, com scraper local opcional) e pede ao **Google Gemini** um *Índice de Vitalidade* (0–100), uma previsão de tendência e tags de saúde da comunidade. Todo relatório é gerado no clique de **Analisar** — nada estático no caminho.
 
 Feito com **HTML, CSS e JavaScript puro (Vanilla JS)** — sem framework, sem bundler, sem `node_modules` para rodar. Publicado em **GitHub Pages**.
 
@@ -97,7 +97,7 @@ Edite `config.local.js` e inclua a tag **antes** de `assets/js/config.js` nos HT
 | `githubApi` | `https://api.github.com` | Base da REST API |
 | `stackexchangeApi` | `https://api.stackexchange.com/2.3` | Base da API de fallback |
 | `stackOverflow` | `https://stackoverflow.com` | Links das perguntas |
-| `devTo` | `https://dev.to` | Base da página raspada pelo scraper |
+| `devTo` | `https://dev.to` | Base do dev.to (API pública de artigos + páginas raspadas pelo scraper) |
 | `geminiApi` | `https://generativelanguage.googleapis.com/v1beta` | Base do Gemini |
 | `geminiModel` | `gemini-3.5-flash-lite` | Modelo com *structured output* |
 | `scraperLocal` | `http://127.0.0.1:8787/api/devto` | Scraper local opcional (DEV.TO) |
@@ -110,9 +110,15 @@ Edite `config.local.js` e inclua a tag **antes** de `assets/js/config.js` nos HT
 
 ---
 
-## 3. API própria de scraping (opcional, local)
+## 3. Dados do DEV.TO: API pública + scraping (opcional, local)
 
-O navegador não consegue raspar `stackoverflow.com` (CORS + Cloudflare). No GitHub Pages, o app usa diretamente a **Stack Exchange API**, que libera CORS. A amostra recente, porém, vem do **DEV.TO**, que é server-rendered e sem bloqueio, via scraping local:
+O DEV.TO sempre entra no relatório. Em **qualquer ambiente** (inclusive GitHub Pages), o app consome a **API pública de artigos** do dev.to, que libera CORS:
+
+```
+https://dev.to/api/articles?tag=react&per_page=30
+```
+
+Isso fornece as publicações recentes da tag (`votes` = reactions, `answers` = comentários, `unanswered` = sem comentários). Quando `location.hostname` for `localhost`/`127.0.0.1`, o app tenta primeiro o scraper local — que enriquece os dados com as páginas **server-rendered** do dev.to, incluindo sinal de tendência — e cai para a API pública se ele não responder. Em produção (HTTPS) ele vai direto para a API pública, evitando *mixed content*:
 
 ```bash
 node tools/scraper.mjs
@@ -141,7 +147,7 @@ O servidor é um `http.createServer` sem dependências, envia `Access-Control-Al
 
 Em uma publicação, `votes` são as *reactions*, `answers` são os comentários e `unanswered` significa "sem comentários".
 
-Quando `location.hostname` for `localhost`/`127.0.0.1`, o app tenta esse endpoint primeiro e cai para a Stack Exchange API se ele não responder. Em produção (HTTPS) ele nem tenta, evitando *mixed content*.
+Quando `location.hostname` for `localhost`/`127.0.0.1`, o app tenta esse endpoint primeiro (fonte `devto-scrape`); sem ele, ou em produção, usa a API pública (fonte `devto-api`).
 
 ---
 
@@ -233,11 +239,11 @@ SKILL.md                    sistema de design de referência
 ## 8. Honestidade dos dados e uso do Gemini
 
 - Estrelas, forks, issues, watchers e datas: **GitHub REST API**.
-- Total de perguntas e total sem resposta: **Stack Exchange API**; amostra recente: **scraping do DEV.TO** (tools/scraper.mjs).
+- Total de perguntas e total sem resposta: **Stack Exchange API**; publicações da tag: **DEV.TO** (API pública, com scraper local opcional).
 - Frequência de perguntas sem resposta: amostra das perguntas recentes (scraping ou API).
 - Histórico de 12 meses: **estimado** a partir dos totais reais de hoje, da idade do repositório e da velocidade real dos últimos stargazers. O gráfico diz isso explicitamente.
 - Sem chaves Gemini: nota, tendência e tags vêm de uma **heurística local**, identificada na interface.
-- Com chaves Gemini: o prompt inclui obrigatoriamente os dados do **GitHub API**, dados do **Stack Overflow** e as **opções selecionadas pelo usuário** na interface (foco, profundidade, perfil, tecnologia de comparação). A resposta é **sempre estruturada (JSON)** e renderizada como widgets, nunca como texto puro.
+- Com chaves Gemini: o prompt inclui obrigatoriamente os dados do **GitHub API**, dados do **Stack Overflow**, dados do **DEV.TO** e as **opções selecionadas pelo usuário** na interface (foco, profundidade, perfil, tecnologia de comparação). A resposta é **sempre estruturada (JSON)** e renderizada como widgets, nunca como texto puro.
 - Cada widget mostra a origem; falhas de cota/bloqueio viram avisos, não números inventados silenciosamente.
 - Se o GitHub não responder, estrelas/forks/atividade aparecem como **indisponível** (`—`), a série de estrelas é omitida do gráfico, a confiança cai e a tag `#DadosDoGitHubAusentes` sinaliza a lacuna. Nada é preenchido com `0` ou com uma data inventada.
 

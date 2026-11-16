@@ -1,98 +1,145 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DevTrends Insights — Analisador de Popularidade de Tecnologias</title>
-<meta name="description" content="Descubra se uma tecnologia está em ascensão antes de investir nela. Índice de Vitalidade calculado com estrelas, forks e issues do GitHub, volume de perguntas e taxa de resolução do Stack Overflow, interpretados pelo Gemini.">
-<meta name="keywords" content="popularidade de tecnologias, tendências de frameworks, índice de vitalidade, GitHub stars, Stack Overflow, escolher stack, tech trends">
-<meta name="theme-color" content="#0A0B0D">
-<meta name="color-scheme" content="dark">
-<link rel="canonical" href="https://pedronunes0z.github.io/devtrends/">
-<meta property="og:type" content="website">
-<meta property="og:locale" content="pt_BR">
-<meta property="og:site_name" content="DevTrends Insights">
-<meta property="og:title" content="DevTrends Insights — Analisador de Popularidade de Tecnologias">
-<meta property="og:description" content="Descubra se uma tecnologia está em ascensão antes de investir nela. Índice de Vitalidade calculado com estrelas, forks e issues do GitHub, volume de perguntas e taxa de resolução do Stack Overflow, interpretados pelo Gemini.">
-<meta property="og:url" content="https://pedronunes0z.github.io/devtrends/">
-<meta property="og:image" content="https://pedronunes0z.github.io/devtrends/assets/img/og-default.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="DevTrends Insights — Analisador de Popularidade de Tecnologias">
-<meta name="twitter:description" content="Descubra se uma tecnologia está em ascensão antes de investir nela. Índice de Vitalidade calculado com estrelas, forks e issues do GitHub, volume de perguntas e taxa de resolução do Stack Overflow, interpretados pelo Gemini.">
-<link rel="icon" href="./assets/img/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./assets/css/styles.css">
-<script type="application/ld+json">[{"@context":"https://schema.org","@type":"WebSite","name":"DevTrends Insights","url":"https://pedronunes0z.github.io/devtrends/","inLanguage":"pt-BR","potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://pedronunes0z.github.io/devtrends/?tech={search_term_string}"},"query-input":"required name=search_term_string"}},{"@context":"https://schema.org","@type":"SoftwareApplication","name":"DevTrends Insights","applicationCategory":"DeveloperApplication","operatingSystem":"Web","url":"https://pedronunes0z.github.io/devtrends/","description":"Índice de Vitalidade de tecnologias a partir de dados reais do GitHub e do Stack Overflow","offers":{"@type":"Offer","price":"0","priceCurrency":"BRL"}},{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"O que é o Índice de Vitalidade?","acceptedAnswer":{"@type":"Answer","text":"Uma nota de 0 a 100 que combina popularidade no GitHub (estrelas, forks, atividade recente) com suporte da comunidade no Stack Overflow (volume de dúvidas e taxa de perguntas sem resposta). O Gemini interpreta os dados e devolve a nota, a tendência e as tags de saúde."}},{"@type":"Question","name":"De onde vêm os dados?","acceptedAnswer":{"@type":"Answer","text":"Da GitHub REST API, da Stack Exchange API e, quando você roda tools/scraper.mjs localmente, de scraping do DEV.TO (home, trending e busca por tag). Cada widget exibe a origem e avisa quando um dado é estimado."}},{"@type":"Question","name":"O histórico do gráfico é real?","acceptedAnswer":{"@type":"Answer","text":"O ponto final de cada série é o valor real atual. A curva histórica é modelada a partir desse total, da idade do repositório e da velocidade real dos últimos stargazers. O gráfico identifica o que é estimativa."}},{"@type":"Question","name":"Preciso de chaves de API?","acceptedAnswer":{"@type":"Answer","text":"Não. GitHub e Stack Overflow funcionam nas cotas públicas. Sem chave Gemini o relatório usa uma heurística local determinística, sinalizada na interface. As chaves ficam apenas no localStorage do seu navegador."}}]}]</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DevTrends Insights — Analisador de Popularidade de Tecnologias</title>
+  <meta name="description"
+    content="Descubra se uma tecnologia está em ascensão antes de investir nela. Índice de Vitalidade calculado com estrelas, forks e issues do GitHub, volume de perguntas e taxa de resolução do Stack Overflow, interpretados pelo Gemini.">
+  <meta name="keywords"
+    content="popularidade de tecnologias, tendências de frameworks, índice de vitalidade, GitHub stars, Stack Overflow, escolher stack, tech trends">
+  <meta name="theme-color" content="#0A0B0D">
+  <meta name="color-scheme" content="dark">
+  <link rel="canonical" href="https://pedronunes0z.github.io/devtrends/">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="DevTrends Insights">
+  <meta property="og:title" content="DevTrends Insights — Analisador de Popularidade de Tecnologias">
+  <meta property="og:description"
+    content="Descubra se uma tecnologia está em ascensão antes de investir nela. Índice de Vitalidade calculado com estrelas, forks e issues do GitHub, volume de perguntas e taxa de resolução do Stack Overflow, interpretados pelo Gemini.">
+  <meta property="og:url" content="https://pedronunes0z.github.io/devtrends/">
+  <meta property="og:image" content="https://pedronunes0z.github.io/devtrends/assets/img/og-default.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="DevTrends Insights — Analisador de Popularidade de Tecnologias">
+  <meta name="twitter:description"
+    content="Descubra se uma tecnologia está em ascensão antes de investir nela. Índice de Vitalidade calculado com estrelas, forks e issues do GitHub, volume de perguntas e taxa de resolução do Stack Overflow, interpretados pelo Gemini.">
+  <link rel="icon" href="./assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/styles.css">
+  <script
+    type="application/ld+json">[{"@context":"https://schema.org","@type":"WebSite","name":"DevTrends Insights","url":"https://pedronunes0z.github.io/devtrends/","inLanguage":"pt-BR","potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://pedronunes0z.github.io/devtrends/?tech={search_term_string}"},"query-input":"required name=search_term_string"}},{"@context":"https://schema.org","@type":"SoftwareApplication","name":"DevTrends Insights","applicationCategory":"DeveloperApplication","operatingSystem":"Web","url":"https://pedronunes0z.github.io/devtrends/","description":"Índice de Vitalidade de tecnologias a partir de dados reais do GitHub e do Stack Overflow","offers":{"@type":"Offer","price":"0","priceCurrency":"BRL"}},{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"O que é o Índice de Vitalidade?","acceptedAnswer":{"@type":"Answer","text":"Uma nota de 0 a 100 que combina popularidade no GitHub (estrelas, forks, atividade recente) com suporte da comunidade no Stack Overflow (volume de dúvidas e taxa de perguntas sem resposta). O Gemini interpreta os dados e devolve a nota, a tendência e as tags de saúde."}},{"@type":"Question","name":"De onde vêm os dados?","acceptedAnswer":{"@type":"Answer","text":"Da GitHub REST API, da Stack Exchange API e, quando você roda tools/scraper.mjs localmente, de scraping do DEV.TO (home, trending e busca por tag). Cada widget exibe a origem e avisa quando um dado é estimado."}},{"@type":"Question","name":"O histórico do gráfico é real?","acceptedAnswer":{"@type":"Answer","text":"O ponto final de cada série é o valor real atual. A curva histórica é modelada a partir desse total, da idade do repositório e da velocidade real dos últimos stargazers. O gráfico identifica o que é estimativa."}},{"@type":"Question","name":"Preciso de chaves de API?","acceptedAnswer":{"@type":"Answer","text":"Não. GitHub e Stack Overflow funcionam nas cotas públicas. Sem chave Gemini o relatório usa uma heurística local determinística, sinalizada na interface. As chaves ficam apenas no localStorage do seu navegador."}}]}]</script>
 </head>
+
 <body data-page="home" data-home=".">
-<canvas id="dither-bg" class="dither-bg" aria-hidden="true"></canvas>
-<div id="dither-fallback" class="dither-fallback" aria-hidden="true" style="display:none"></div>
-<div class="page">
-<header class="nav"><div class="wrap nav-inner">
-  <a class="wordmark" href="index.html"><span class="dot"></span>devtrends<span class="slash">/</span>insights</a>
-  <nav class="nav-links" aria-label="Navegação principal">
-    <a href="#analisar">Analisar</a>
-    <a href="#como-funciona">Como funciona</a>
-    <a href="#video">Vídeo</a>
-    <a href="#fontes">Fontes</a>
-    <a href="#tecnologias">Tecnologias</a>
-    <a class="nav-api" href="https://github.com/PedroNunes0z/devtrends" target="_blank" rel="noopener noreferrer">código-fonte <span data-icon="arrowUpRight" data-icon-class="icon-sm"></span></a>
-  </nav>
-  <button id="config-toggle" class="config-btn" type="button" aria-label="Configurar chaves de API e opcoes de analise"></button>
-  <a class="nav-cta" href="#analisar">Consultar</a>
-</div></header>
-<div class="wrap"><div id="config-panel" class="nested config-panel">
-  <p class="config-section-title" style="display:flex;align-items:center;gap:8px"><img class="gemini-icon-img" src="./assets/img/Google_Gemini_icon.svg" alt="" width="16" height="16">Chaves Gemini (rodizio automatico)</p>
-  <div class="key-add-row">
-    <div class="key-input-group">
-      <label>Nova chave Gemini<input type="password" name="new-gemini-key" placeholder="AIza..." autocomplete="off"></label>
+  <canvas id="dither-bg" class="dither-bg" aria-hidden="true"></canvas>
+  <div id="dither-fallback" class="dither-fallback" aria-hidden="true" style="display:none"></div>
+  <div class="page">
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="wordmark" href="index.html"><span class="dot"></span>devtrends<span class="slash">/</span>insights</a>
+        <nav class="nav-links" aria-label="Navegação principal">
+          <a href="#analisar">Analisar</a>
+          <a href="#como-funciona">Como funciona</a>
+          <a href="#video">Vídeo</a>
+          <a href="#fontes">Fontes</a>
+          <a href="#tecnologias">Tecnologias</a>
+          <a class="nav-api" href="https://github.com/PedroNunes0z/devtrends" target="_blank"
+            rel="noopener noreferrer">código-fonte <span data-icon="arrowUpRight" data-icon-class="icon-sm"></span></a>
+        </nav>
+        <button id="config-toggle" class="config-btn" type="button"
+          aria-label="Configurar chaves de API e opcoes de analise"></button>
+        <a class="nav-cta" href="#analisar">Consultar</a>
+      </div>
+    </header>
+    <div class="wrap">
+      <div id="config-panel" class="nested config-panel">
+        <p class="config-section-title" style="display:flex;align-items:center;gap:8px"><img class="gemini-icon-img"
+            src="./assets/img/Google_Gemini_icon.svg" alt="" width="16" height="16">Chaves Gemini (rodizio automatico)
+        </p>
+        <div class="key-add-row">
+          <div class="key-input-group">
+            <label>Nova chave Gemini<input type="password" name="new-gemini-key" placeholder="AIza..."
+                autocomplete="off"></label>
+          </div>
+          <div class="key-input-group" style="flex:none;width:160px">
+            <label>Rotulo (opcional)<input type="text" name="new-gemini-label" placeholder="Chave 1"
+                autocomplete="off"></label>
+          </div>
+          <button type="button" class="key-add-btn" data-add-key>Adicionar</button>
+        </div>
+        <div id="gemini-keys-list"></div>
+        <div class="config-section">
+          <label>GitHub token (aumenta a cota de 60 para 5.000 req/h)<input type="password" name="githubToken"
+              placeholder="ghp_..." autocomplete="off"><span class="hint">Opcional, somente leitura de dados
+              publicos.</span></label>
+          <label>Stack Exchange key<input type="password" name="stackexchangeKey" placeholder="opcional"
+              autocomplete="off"><span class="hint">Opcional. Fica apenas neste navegador (localStorage), nunca no
+              repositorio.</span></label>
+          <label><span style="display:inline-flex;align-items:center;gap:6px;margin-bottom:4px"><img
+                class="gemini-icon-img" src="./assets/img/Google_Gemini_icon.svg" alt="" width="14" height="14">Modelo
+              Gemini</span><input type="text" name="geminiModel" placeholder="gemini-3.5-flash-lite"
+              autocomplete="off"><span class="hint">Padrão: gemini-3.5-flash-lite.</span></label>
+          <button type="button" class="btn btn-primary" data-config-save style="height:38px">Salvar e
+            recarregar</button>
+        </div>
+      </div>
     </div>
-    <div class="key-input-group" style="flex:none;width:160px">
-      <label>Rotulo (opcional)<input type="text" name="new-gemini-label" placeholder="Chave 1" autocomplete="off"></label>
-    </div>
-    <button type="button" class="key-add-btn" data-add-key>Adicionar</button>
-  </div>
-  <div id="gemini-keys-list"></div>
-  <div class="config-section">
-    <label>GitHub token (aumenta a cota de 60 para 5.000 req/h)<input type="password" name="githubToken" placeholder="ghp_..." autocomplete="off"><span class="hint">Opcional, somente leitura de dados publicos.</span></label>
-    <label>Stack Exchange key<input type="password" name="stackexchangeKey" placeholder="opcional" autocomplete="off"><span class="hint">Opcional. Fica apenas neste navegador (localStorage), nunca no repositorio.</span></label>
-    <label><span style="display:inline-flex;align-items:center;gap:6px;margin-bottom:4px"><img class="gemini-icon-img" src="./assets/img/Google_Gemini_icon.svg" alt="" width="14" height="14">Modelo Gemini</span><input type="text" name="geminiModel" placeholder="gemini-3.5-flash-lite" autocomplete="off"><span class="hint">Padrão: gemini-3.5-flash-lite.</span></label>
-    <button type="button" class="btn btn-primary" data-config-save style="height:38px">Salvar e recarregar</button>
-  </div>
-</div></div>
-<main id="conteudo">
-<section class="hero wrap" id="analisar">
-  <p class="eyebrow brand-eyebrow">
-    <span class="brand-item"><span data-icon="github" data-icon-class="icon-sm"></span> GitHub</span>
-    <span class="brand-sep">×</span>
-    <span class="brand-item"><img class="so-logo-img" src="./assets/img/Stack_Overflow_logo.svg" alt="Stack Overflow" height="14"></span>
-    <span class="brand-sep">×</span>
-    <span class="brand-item"><img class="gemini-icon-img" src="./assets/img/Google_Gemini_icon.svg" alt="Google Gemini" width="16" height="16"> Google Gemini</span>
-  </p>
-  <h1 class="h1 two-tone">Escolha a próxima tecnologia com dados. <span>Meça popularidade, atividade e suporte da comunidade.</span></h1>
-  <div class="hero-sub">
-    <p class="prose">Digite um nome como <code class="inline-code">Vue.js</code> e receba um Índice de Vitalidade, uma previsão de tendência e as tags de saúde da comunidade.</p>
-    <div style="margin-top:24px"><div class="search" data-search-scope>
-  <form class="search-row" data-search-form role="search">
-    <label class="sr-only" for="tech-query">Nome da tecnologia</label>
-    <div class="input-shell"><span class="prompt" aria-hidden="true">$</span><input id="tech-query" name="tech" type="text" placeholder="vue.js, rust, next.js…" maxlength="80" autocomplete="off" value=""></div>
-    <button class="btn btn-primary" type="submit">Analisar <span data-icon="arrowRight" data-icon-class="icon-sm"></span></button>
-  </form>
-  <div class="suggestions"><span class="label">sugestões:</span>
-    <button type="button" class="chip" data-tech="React">React</button><button type="button" class="chip" data-tech="Vue.js">Vue.js</button><button type="button" class="chip" data-tech="Rust">Rust</button><button type="button" class="chip" data-tech="TypeScript">TypeScript</button><button type="button" class="chip" data-tech="Bun">Bun</button><button type="button" class="chip" data-tech="Kubernetes">Kubernetes</button>
-  </div>
-</div></div>
-    <p class="footer-meta" style="margin-top:20px"><span data-ticker="27">27</span> tecnologias no catálogo · qualquer outra via GitHub Search</p>
-  </div>
-  <div class="hero-code">
-    <div class="frame">
-      <figure class="code-block " data-lang="js">
-  <figcaption class="code-chrome"><span>devtrends.js</span><span class="lang">JavaScript</span><button class="copy-btn" data-copy type="button"></button></figcaption>
-  <div class="code-body scroll-fade"><pre><code>const repo = await fetch(
+    <main id="conteudo">
+      <section class="hero wrap" id="analisar">
+        <p class="eyebrow brand-eyebrow">
+          <span class="brand-item"><span data-icon="github" data-icon-class="icon-sm"></span> GitHub</span>
+          <span class="brand-sep">×</span>
+          <span class="brand-item"><img class="so-logo-img" src="./assets/img/Stack_Overflow_logo.svg"
+              alt="Stack Overflow" height="14"></span>
+          <span class="brand-sep">×</span>
+          <span class="brand-item"><img class="so-logo-img" src="./assets/img/Dev_Logo.webp"
+              alt="DEV Community" height="14"></span>
+          <span class="brand-sep">×</span>
+          <span class="brand-item"><img class="gemini-icon-img" src="./assets/img/Google_Gemini_icon.svg"
+              alt="Google Gemini" width="16" height="16"> Google Gemini</span>
+        </p>
+        <h1 class="h1 two-tone">Escolha a próxima tecnologia com dados. <span>Meça popularidade, atividade e suporte da
+            comunidade.</span></h1>
+        <div class="hero-sub">
+          <p class="prose">Digite um nome como <code class="inline-code">Vue.js</code> e receba um Índice de Vitalidade,
+            uma previsão de tendência e as tags de saúde da comunidade.</p>
+          <div style="margin-top:24px">
+            <div class="search" data-search-scope>
+              <form class="search-row" data-search-form role="search">
+                <label class="sr-only" for="tech-query">Nome da tecnologia</label>
+                <div class="input-shell"><span class="prompt" aria-hidden="true">$</span><input id="tech-query"
+                    name="tech" type="text" placeholder="vue.js, rust, next.js…" maxlength="80" autocomplete="off"
+                    value=""></div>
+                <button class="btn btn-primary" type="submit">Analisar <span data-icon="arrowRight"
+                    data-icon-class="icon-sm"></span></button>
+              </form>
+              <div class="suggestions"><span class="label">sugestões:</span>
+                <button type="button" class="chip" data-tech="React">React</button><button type="button" class="chip"
+                  data-tech="Vue.js">Vue.js</button><button type="button" class="chip"
+                  data-tech="Rust">Rust</button><button type="button" class="chip"
+                  data-tech="TypeScript">TypeScript</button><button type="button" class="chip"
+                  data-tech="Bun">Bun</button><button type="button" class="chip"
+                  data-tech="Kubernetes">Kubernetes</button>
+              </div>
+            </div>
+          </div>
+          <p class="footer-meta" style="margin-top:20px"><span data-ticker="27">27</span> tecnologias no catálogo ·
+            qualquer outra via GitHub Search</p>
+        </div>
+        <div class="hero-code">
+          <div class="frame">
+            <figure class="code-block " data-lang="js">
+              <figcaption class="code-chrome"><span>devtrends.js</span><span class="lang">JavaScript</span><button
+                  class="copy-btn" data-copy type="button"></button></figcaption>
+              <div class="code-body scroll-fade">
+                <pre><code>const repo = await fetch(
   &quot;https://api.github.com/repos/vuejs/core&quot;
 ).then((r) =&gt; r.json());
 
@@ -103,79 +150,139 @@ const tag = await fetch(
 // structured output: nota, tendência e tags de saúde
 const report = await DEVTRENDS_DATA.getInsights(&quot;Vue.js&quot;);
 console.log(report.ai.indiceVitalidade, report.ai.tags);
-console.log(repo.stargazers_count, tag.items[0].count);</code></pre></div>
-</figure>
-      <div class="code-status"><span class="method">GET</span><span>api.github.com / api.stackexchange.com</span><span class="status">200 · application/json</span></div>
-    </div>
-    <p class="code-caption"><span data-icon="arrowUp" data-icon-class="icon-sm"></span> a chamada real da API, com as funções usadas pela interface</p>
-  </div>
-</section>
+console.log(repo.stargazers_count, tag.items[0].count);</code></pre>
+              </div>
+            </figure>
+            <div class="code-status"><span class="method">GET</span><span>api.github.com /
+                api.stackexchange.com</span><span class="status">200 · application/json</span></div>
+          </div>
+          <p class="code-caption"><span data-icon="arrowUp" data-icon-class="icon-sm"></span> a chamada real da API, com
+            as funções usadas pela interface</p>
+        </div>
+      </section>
 
-<section class="quickstart"><div class="wrap quickstart-inner">
-  <span class="label">quickstart</span>
-  <div class="command"><span class="prompt">$</span><code>git clone https://github.com/PedroNunes0z/devtrends.git &amp;&amp; cd devtrends &amp;&amp; python -m http.server 8080</code><button type="button" data-copy-command="git clone https://github.com/PedroNunes0z/devtrends.git &amp;&amp; cd devtrends &amp;&amp; python -m http.server 8080" aria-label="Copiar comando"></button></div>
-  <a class="btn-link" href="https://github.com/PedroNunes0z/devtrends#readme" target="_blank" rel="noopener noreferrer">README <span data-icon="arrowUpRight" data-icon-class="icon-sm"></span></a>
-</div></section>
+      <section class="quickstart">
+        <div class="wrap quickstart-inner">
+          <span class="label">quickstart</span>
+          <div class="command"><span
+              class="prompt">$</span><code>git clone https://github.com/PedroNunes0z/devtrends.git &amp;&amp; cd devtrends &amp;&amp; python -m http.server 8080</code><button
+              type="button"
+              data-copy-command="git clone https://github.com/PedroNunes0z/devtrends.git &amp;&amp; cd devtrends &amp;&amp; python -m http.server 8080"
+              aria-label="Copiar comando"></button></div>
+          <a class="btn-link" href="https://github.com/PedroNunes0z/devtrends#readme" target="_blank"
+            rel="noopener noreferrer">README <span data-icon="arrowUpRight" data-icon-class="icon-sm"></span></a>
+        </div>
+      </section>
 
-<section class="section wrap" id="analise">
-  <div class="section-head"><h2 class="h2 headline two-tone">Um relatório completo. <span>Gerado quando você clica em Analisar.</span></h2>
-    <div class="detail"><p>Nada está pré-computado aqui: cada análise é uma chamada real das APIs na hora do clique. Foco, profundidade e perfil vão para o Gemini junto com os dados.</p><p class="index">2.0 Análise →</p></div></div>
-  <div class="options-panel nested" style="margin-top:24px;padding:20px">
-    <p class="config-section-title" style="margin-bottom:14px;display:flex;align-items:center;gap:8px"><img class="gemini-icon-img" src="./assets/img/Google_Gemini_icon.svg" alt="Gemini" width="16" height="16">Opções de análise (enviadas ao Gemini)</p>
-    <div class="options-grid">
-      <div class="option-group"><label for="analysis-focus">Foco</label><select id="analysis-focus" name="analysis-focus" data-option-control>
-        <option value="geral" selected>Analise geral (todos os critérios)</option>
-        <option value="carreira">Foco em carreira: demanda de mercado e empregabilidade</option>
-        <option value="adocao">Foco em adoção em projetos: estabilidade e ecossistema</option>
-        <option value="aprendizado">Foco em curva de aprendizado e documentação</option>
-        <option value="manutencao">Foco em manutenção: atividade, issues e suporte</option>
-      </select></div>
-      <div class="option-group"><label for="analysis-depth">Profundidade</label><select id="analysis-depth" name="analysis-depth" data-option-control>
-        <option value="rapida">Analise rápida (resumo e índice)</option>
-        <option value="padrao" selected>Analise padrão (todos os campos do schema)</option>
-        <option value="profunda">Analise profunda (justificativa detalhada e recomendação específica)</option>
-      </select></div>
-      <div class="option-group"><label for="experience-level">Perfil</label><select id="experience-level" name="experience-level" data-option-control>
-        <option value="iniciante" selected>Desenvolvedor iniciante</option>
-        <option value="intermediario">Desenvolvedor intermediário</option>
-        <option value="avancado">Desenvolvedor avançado / arquiteto</option>
-      </select></div>
-    </div>
-  </div>
-  <div id="report" style="margin-top:28px"></div>
-</section>
+      <section class="section wrap" id="analise">
+        <div class="section-head">
+          <h2 class="h2 headline two-tone">Um relatório completo. <span>Gerado quando você clica em Analisar.</span>
+          </h2>
+          <div class="detail">
+            <p>Nada está pré-computado aqui: cada análise é uma chamada real das APIs na hora do clique. Foco,
+              profundidade e perfil vão para o Gemini junto com os dados.</p>
+            <p class="index">2.0 Análise →</p>
+          </div>
+        </div>
+        <div class="options-panel nested" style="margin-top:24px;padding:20px">
+          <p class="config-section-title" style="margin-bottom:14px;display:flex;align-items:center;gap:8px"><img
+              class="gemini-icon-img" src="./assets/img/Google_Gemini_icon.svg" alt="Gemini" width="16"
+              height="16">Opções de análise (enviadas ao Gemini)</p>
+          <div class="options-grid">
+            <div class="option-group"><label for="analysis-focus">Foco</label><select id="analysis-focus"
+                name="analysis-focus" data-option-control>
+                <option value="geral" selected>Analise geral (todos os critérios)</option>
+                <option value="carreira">Foco em carreira: demanda de mercado e empregabilidade</option>
+                <option value="adocao">Foco em adoção em projetos: estabilidade e ecossistema</option>
+                <option value="aprendizado">Foco em curva de aprendizado e documentação</option>
+                <option value="manutencao">Foco em manutenção: atividade, issues e suporte</option>
+              </select></div>
+            <div class="option-group"><label for="analysis-depth">Profundidade</label><select id="analysis-depth"
+                name="analysis-depth" data-option-control>
+                <option value="rapida">Analise rápida (resumo e índice)</option>
+                <option value="padrao" selected>Analise padrão (todos os campos do schema)</option>
+                <option value="profunda">Analise profunda (justificativa detalhada e recomendação específica)</option>
+              </select></div>
+            <div class="option-group"><label for="experience-level">Perfil</label><select id="experience-level"
+                name="experience-level" data-option-control>
+                <option value="iniciante" selected>Desenvolvedor iniciante</option>
+                <option value="intermediario">Desenvolvedor intermediário</option>
+                <option value="avancado">Desenvolvedor avançado / arquiteto</option>
+              </select></div>
+          </div>
+        </div>
+        <div id="report" style="margin-top:28px"></div>
+      </section>
 
-<section class="section wrap" id="como-funciona">
-  <div class="section-head">
-    <h2 class="h2 headline two-tone">Em Três chamadas. <span>Nenhum número inventado no caminho.</span></h2>
-    <div class="detail"><p>Cada etapa expõe o comando que a executa. Os contêineres ficam empilhados, um abaixo do outro, na ordem do pipeline.</p><p class="index">1.0 Pipeline →</p></div>
-  </div>
-  <div class="pipeline"><div class="pipeline-row">
-  <div><p class="step" style="color:var(--kw);display:flex;align-items:center">01 · github.js</p><p class="step-desc" style="margin-top:10px">Repositório principal, estrelas, forks, issues e amostragem real dos últimos stargazers.</p></div>
-  <div class="step-code"><figure class="code-block " data-lang="bash">
-  <figcaption class="code-chrome"><span>github.js</span><span class="lang">shell</span><button class="copy-btn" data-copy type="button"></button></figcaption>
-  <div class="code-body scroll-fade"><pre><code>curl -s &quot;https://api.github.com/repos/vuejs/core&quot; \
+      <section class="section wrap" id="como-funciona">
+        <div class="section-head">
+          <h2 class="h2 headline two-tone">Em Três chamadas. <span>Nenhum número inventado no caminho.</span></h2>
+          <div class="detail">
+            <p>Cada etapa expõe o comando que a executa. Os contêineres ficam empilhados, um abaixo do outro, na ordem
+              do pipeline.</p>
+            <p class="index">1.0 Pipeline →</p>
+          </div>
+        </div>
+        <div class="pipeline">
+          <div class="pipeline-row">
+            <div>
+              <p class="step" style="color:var(--kw);display:flex;align-items:center">01 · github.js</p>
+              <p class="step-desc" style="margin-top:10px">Repositório principal, estrelas, forks, issues e amostragem
+                real dos últimos stargazers.</p>
+            </div>
+            <div class="step-code">
+              <figure class="code-block " data-lang="bash">
+                <figcaption class="code-chrome"><span>github.js</span><span class="lang">shell</span><button
+                    class="copy-btn" data-copy type="button"></button></figcaption>
+                <div class="code-body scroll-fade">
+                  <pre><code>curl -s &quot;https://api.github.com/repos/vuejs/core&quot; \
   | jq '{stars: .stargazers_count,
          forks: .forks_count,
          issues: .open_issues_count,
-         pushed: .pushed_at}'</code></pre></div>
-</figure></div>
-</div><div class="pipeline-row">
-  <div><p class="step" style="color:var(--str);display:flex;align-items:center"><img class="so-logo-img" src="./assets/img/Stack_Overflow_logo.svg" alt="Stack Overflow" height="15" style="margin-right:8px"><img class="so-logo-img" src="./assets/img/Dev_Logo.webp" alt="DEV Community" height="15" style="margin-right:8px">02 · stackoverflow.js</p><p class="step-desc" style="margin-top:10px">Totais e amostra de perguntas recentes da tag. Em localhost, o scraper próprio (tools/scraper.mjs) raspa o DEV.TO (home, trending e busca); no Pages, a Stack Exchange API assume.</p></div>
-  <div class="step-code"><figure class="code-block " data-lang="js">
-  <figcaption class="code-chrome"><span>stackoverflow.js</span><span class="lang">JavaScript</span><button class="copy-btn" data-copy type="button"></button></figcaption>
-  <div class="code-body scroll-fade"><pre><code>const tag = &quot;vue.js&quot;;
+         pushed: .pushed_at}'</code></pre>
+                </div>
+              </figure>
+            </div>
+          </div>
+          <div class="pipeline-row">
+            <div>
+              <p class="step" style="color:var(--str);display:flex;align-items:center"><img class="so-logo-img"
+                  src="./assets/img/Stack_Overflow_logo.svg" alt="Stack Overflow" height="15"
+                  style="margin-right:8px"><img class="so-logo-img" src="./assets/img/Dev_Logo.webp" alt="DEV Community"
+                  height="15" style="margin-right:8px">02 · stackoverflow.js</p>
+              <p class="step-desc" style="margin-top:10px">Totais e amostra de perguntas recentes da tag. Em localhost,
+                o scraper próprio (tools/scraper.mjs) raspa o DEV.TO (home, trending e busca); no Pages, a Stack
+                Exchange API assume.</p>
+            </div>
+            <div class="step-code">
+              <figure class="code-block " data-lang="js">
+                <figcaption class="code-chrome"><span>stackoverflow.js</span><span class="lang">JavaScript</span><button
+                    class="copy-btn" data-copy type="button"></button></figcaption>
+                <div class="code-body scroll-fade">
+                  <pre><code>const tag = &quot;vue.js&quot;;
 const totals = await fetch(
   `https://api.stackexchange.com/2.3/tags/${tag}/info?site=stackoverflow`
 ).then((r) =&gt; r.json());
 // tools/scraper.mjs raspa dev.to (/, /trending, /search?q=tag) em localhost
-console.log(totals.items[0].count);</code></pre></div>
-</figure></div>
-</div><div class="pipeline-row">
-  <div><p class="step" style="color:var(--fn);display:flex;align-items:center"><img class="gemini-icon-img" src="./assets/img/Google_Gemini_icon.svg" alt="Google Gemini" width="16" height="16" style="margin-right:8px">03 · gemini.js</p><p class="step-desc" style="margin-top:10px">Structured output: nota, tendência, justificativa e tags com tipos garantidos por responseSchema.</p></div>
-  <div class="step-code"><figure class="code-block " data-lang="json">
-  <figcaption class="code-chrome"><span>gemini.js</span><span class="lang">JSON</span><button class="copy-btn" data-copy type="button"></button></figcaption>
-  <div class="code-body scroll-fade"><pre><code>{
+console.log(totals.items[0].count);</code></pre>
+                </div>
+              </figure>
+            </div>
+          </div>
+          <div class="pipeline-row">
+            <div>
+              <p class="step" style="color:var(--fn);display:flex;align-items:center"><img class="gemini-icon-img"
+                  src="./assets/img/Google_Gemini_icon.svg" alt="Google Gemini" width="16" height="16"
+                  style="margin-right:8px">03 · gemini.js</p>
+              <p class="step-desc" style="margin-top:10px">Structured output: nota, tendência, justificativa e tags com
+                tipos garantidos por responseSchema.</p>
+            </div>
+            <div class="step-code">
+              <figure class="code-block " data-lang="json">
+                <figcaption class="code-chrome"><span>gemini.js</span><span class="lang">JSON</span><button
+                    class="copy-btn" data-copy type="button"></button></figcaption>
+                <div class="code-body scroll-fade">
+                  <pre><code>{
   &quot;responseMimeType&quot;: &quot;application/json&quot;,
   &quot;responseSchema&quot;: {
     &quot;type&quot;: &quot;OBJECT&quot;,
@@ -187,87 +294,270 @@ console.log(totals.items[0].count);</code></pre></div>
         &quot;items&quot;: { &quot;type&quot;: &quot;OBJECT&quot; } }
     }
   }
-}</code></pre></div>
-</figure></div>
-</div></div>
-</section>
+}</code></pre>
+                </div>
+              </figure>
+            </div>
+          </div>
+        </div>
+      </section>
 
-<section class="section wrap" id="video">
-  <div class="section-head">
-    <h2 class="h2 headline two-tone">Veja em ação. <span>Da busca ao relatório rendered em widgets.</span></h2>
-    <div class="detail"><p>Gravação real do aplicativo: a busca por uma tecnologia, as opções de análise e o relatório construído a partir das chamadas das APIs.</p><p class="index">3.0 Demonstração →</p></div>
+      <section class="section wrap" id="video">
+        <div class="section-head">
+          <h2 class="h2 headline two-tone">Veja em ação. <span>Da busca ao relatório rendered em widgets.</span></h2>
+          <div class="detail">
+            <p>Gravação real do aplicativo: a busca por uma tecnologia, as opções de análise e o relatório construído a
+              partir das chamadas das APIs.</p>
+            <p class="index">3.0 Demonstração →</p>
+          </div>
+        </div>
+        <figure class="frame" style="margin-top:28px">
+          <video controls preload="metadata" poster="./assets/img/og-default.png"
+            style="width:100%;display:block;border:1px solid var(--hairline);border-radius:var(--r-panel);background:var(--surface)">
+            <source src="./assets/video/devtrends.mp4" type="video/mp4">
+            <track kind="captions" label="Sem legendas">
+            Seu navegador não suporta vídeo HTML5. <a href="./assets/video/devtrends.mp4">Baixar o vídeo (MP4)</a>.
+          </video>
+          <figcaption class="code-caption"><span data-icon="arrowUp" data-icon-class="icon-sm"></span> demonstração do
+            DevTrends Insights (MP4, <code class="inline-code">assets/video/devtrends.mp4</code>)</figcaption>
+        </figure>
+      </section>
+
+      <section class="section wrap" id="fontes">
+        <div class="section-head">
+          <h2 class="h2 headline two-tone">Rotas e cotas. <span>O que cada consulta custa.</span></h2>
+          <div class="detail">
+            <p>O GitHub permite 60 requisições por hora sem token e 5.000 com token. A Stack Exchange API aceita 300 por
+              dia sem chave. Nada roda em servidor: tudo é chamado pelo seu navegador.</p>
+            <p class="index"><a href="sitemap.xml">baixar sitemap →</a></p>
+          </div>
+        </div>
+        <div class="table-wrap" style="margin-top:28px">
+          <table>
+            <thead>
+              <tr>
+                <th>Fonte</th>
+                <th>Método</th>
+                <th>Endpoint</th>
+                <th>Autenticação</th>
+                <th>Cache</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row" class="mono" style="font-size:13px">GitHub REST</th>
+                <td class="mono" style="color:var(--fn);font-size:12px">GET</td>
+                <td>api.github.com</td>
+                <td class="origin">token opcional</td>
+                <td class="origin">60 min</td>
+              </tr>
+              <tr>
+                <th scope="row" class="mono" style="font-size:13px">Stack Exchange</th>
+                <td class="mono" style="color:var(--fn);font-size:12px">GET</td>
+                <td>api.stackexchange.com/2.3</td>
+                <td class="origin">key opcional</td>
+                <td class="origin">60 min</td>
+              </tr>
+              <tr>
+                <th scope="row" class="mono" style="font-size:13px">Scraper local</th>
+                <td class="mono" style="color:var(--fn);font-size:12px">GET</td>
+                <td>127.0.0.1:8787 (opcional)</td>
+                <td class="origin">nenhuma</td>
+                <td class="origin">—</td>
+              </tr>
+              <tr>
+                <th scope="row" class="mono" style="font-size:13px">Gemini</th>
+                <td class="mono" style="color:var(--fn);font-size:12px">POST</td>
+                <td>generativelanguage.googleapis.com</td>
+                <td class="origin">chave no painel</td>
+                <td class="origin">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section wrap">
+        <div class="sample-head">
+          <h2 class="h2 two-tone">O que está implementado. <span>Sem slide de marketing.</span></h2><span
+            class="eyebrow">4.0 Capacidades →</span>
+        </div>
+        <div class="feature-grid">
+          <div class="feature-cell">
+            <h3 class="h3">Tres fontes, um numero</h3>
+            <p>GitHub REST, Stack Overflow e interpretacao do Gemini em uma unica resposta, montada no navegador.</p>
+            <code>DEVTRENDS_DATA.getInsights(&quot;rust&quot;, { focus: &quot;carreira&quot; })</code>
+          </div>
+          <div class="feature-cell">
+            <h3 class="h3">Origem em cada valor</h3>
+            <p>Cada widget declara a origem e sinaliza quando a cota publica esgotou ou o scraping foi bloqueado.</p>
+            <code>sources.github = &quot;github-api&quot;</code>
+          </div>
+          <div class="feature-cell">
+            <h3 class="h3">Opcoes na interface</h3>
+            <p>Foco da analise, profundidade, perfil do desenvolvedor e tecnologia de comparacao sao selecionados pelo
+              usuario e enviados ao Gemini.</p><code>{ focus: &quot;carreira&quot;, depth: &quot;profunda&quot; }</code>
+          </div>
+          <div class="feature-cell">
+            <h3 class="h3">Saida estruturada, nao texto puro</h3>
+            <p>Gemini devolve JSON com score breakdown, comparativo e projecao. Renderizado como barras, cards e
+              tabelas, nunca texto solto.</p><code>ai.scoreBreakdown.popularidade</code>
+          </div>
+          <div class="feature-cell">
+            <h3 class="h3">Rodizio de chaves Gemini</h3>
+            <p>Multiplas chaves com rotacao automatica. Adicione, remova e acompanhe estatisticas de cada chave no
+              painel Config.</p><code>DEVTRENDS.keys.add(&quot;AIza...&quot;)</code>
+          </div>
+          <div class="feature-cell">
+            <h3 class="h3">Fundo ditherizado</h3>
+            <p>Port vanilla do Dither Field em WebGL2 ocupando a pagina inteira, com frame estatico e fallback CSS.</p>
+            <code>assets/js/dither-field.js</code>
+          </div>
+        </div>
+      </section>
+
+      <section class="section wrap" id="tecnologias">
+        <div class="section-head">
+          <h2 class="h2 headline two-tone">Catálogo rápido. <span>Clique e a análise roda na hora.</span></h2>
+          <div class="detail">
+            <p>Cada item dispara a análise no clique: GitHub REST, Stack Overflow, o scraper do DEV.TO e o Gemini, sem
+              relatório pronto.</p>
+            <p class="index">5.0 Índice →</p>
+          </div>
+        </div>
+        <div class="tech-grid" style="margin-top:28px">
+          <div class="tech-row"><a href="#analise" data-analyze="React">React</a><span
+              class="repo">facebook/react</span></div>
+          <div class="tech-row"><a href="#analise" data-analyze="Vue.js">Vue.js</a><span class="repo">vuejs/core</span>
+          </div>
+          <div class="tech-row"><a href="#analise" data-analyze="Next.js">Next.js</a><span
+              class="repo">vercel/next.js</span></div>
+          <div class="tech-row"><a href="#analise" data-analyze="TypeScript">TypeScript</a><span
+              class="repo">microsoft/TypeScript</span></div>
+          <div class="tech-row"><a href="#analise" data-analyze="Python">Python</a><span
+              class="repo">python/cpython</span></div>
+          <div class="tech-row"><a href="#analise" data-analyze="Rust">Rust</a><span class="repo">rust-lang/rust</span>
+          </div>
+          <div class="tech-row"><a href="#analise" data-analyze="Go">Go</a><span class="repo">golang/go</span></div>
+          <div class="tech-row"><a href="#analise" data-analyze="Svelte">Svelte</a><span
+              class="repo">sveltejs/svelte</span></div>
+          <div class="tech-row"><a href="#analise" data-analyze="Angular">Angular</a><span
+              class="repo">angular/angular</span></div>
+          <div class="tech-row"><a href="#analise" data-analyze="Node.js">Node.js</a><span
+              class="repo">nodejs/node</span></div>
+          <div class="tech-row"><a href="#analise" data-analyze="Tailwind CSS">Tailwind CSS</a><span
+              class="repo">tailwindlabs/tailwindcss</span></div>
+          <div class="tech-row"><a href="#analise" data-analyze="Astro">Astro</a><span
+              class="repo">withastro/astro</span></div>
+          <div class="tech-row"><a href="#analise" data-analyze="Bun">Bun</a><span class="repo">oven-sh/bun</span></div>
+          <div class="tech-row"><a href="#analise" data-analyze="Kubernetes">Kubernetes</a><span
+              class="repo">kubernetes/kubernetes</span></div>
+          <div class="tech-row"><a href="#analise" data-analyze="PyTorch">PyTorch</a><span
+              class="repo">pytorch/pytorch</span></div>
+        </div>
+      </section>
+
+      <section class="section wrap">
+        <div class="faq-grid">
+          <div>
+            <h2 class="h2 two-tone">Perguntas frequentes. <span>Inclusive sobre o que não é real.</span></h2>
+          </div>
+          <dl class="faq-list">
+            <div class="faq-item">
+              <dt>O que é o Índice de Vitalidade?</dt>
+              <dd>Uma nota de 0 a 100 que combina popularidade no GitHub (estrelas, forks, atividade recente) com
+                suporte da comunidade no Stack Overflow (volume de dúvidas e taxa de perguntas sem resposta). O Gemini
+                interpreta os dados e devolve a nota, a tendência e as tags de saúde.</dd>
+            </div>
+            <div class="faq-item">
+              <dt>De onde vêm os dados?</dt>
+              <dd>Da GitHub REST API, da Stack Exchange API e, quando você roda tools/scraper.mjs localmente, de
+                scraping do DEV.TO (home, trending e busca por tag). Cada widget exibe a origem e avisa quando um dado é
+                estimado.</dd>
+            </div>
+            <div class="faq-item">
+              <dt>O histórico do gráfico é real?</dt>
+              <dd>O ponto final de cada série é o valor real atual. A curva histórica é modelada a partir desse total,
+                da idade do repositório e da velocidade real dos últimos stargazers. O gráfico identifica o que é
+                estimativa.</dd>
+            </div>
+            <div class="faq-item">
+              <dt>Preciso de chaves de API?</dt>
+              <dd>Não. GitHub e Stack Overflow funcionam nas cotas públicas. Sem chave Gemini o relatório usa uma
+                heurística local determinística, sinalizada na interface. As chaves ficam apenas no localStorage do seu
+                navegador.</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="section wrap">
+        <div class="nested cta">
+          <div>
+            <p style="font-size:22px;font-weight:500;margin:0">Consulte uma tecnologia.</p>
+            <p class="prose" style="margin:4px 0 0">A resposta é a mesma que as APIs entregam, com a origem de cada
+              número.</p>
+          </div>
+          <div class="actions"><a class="btn btn-primary" href="#analise" data-analyze="Vue.js">Analisar Vue.js <span
+                data-icon="arrowRight" data-icon-class="icon-sm"></span></a><a class="btn btn-ghost"
+              href="https://github.com/PedroNunes0z/devtrends" target="_blank" rel="noopener noreferrer">Código-fonte
+              <span data-icon="github" data-icon-class="icon-sm"></span></a></div>
+        </div>
+      </section>
+    </main>
+    <footer class="footer">
+      <div class="wrap footer-grid">
+        <div>
+          <p class="footer-title">devtrends/insights</p>
+          <p class="prose" style="margin-top:12px">Índice de Vitalidade para decidir o que estudar ou qual stack adotar,
+            com dados que você pode verificar.</p>
+          <p class="footer-meta">v2.0.0 · vanilla JS · MIT · pt-BR</p>
+        </div>
+        <div>
+          <p class="footer-label">Páginas</p>
+          <ul>
+            <li><a href="index.html">Início</a></li>
+            <li><a href="#analise" data-analyze="React">React</a></li>
+            <li><a href="#analise" data-analyze="Vue.js">Vue.js</a></li>
+            <li><a href="#analise" data-analyze="Rust">Rust</a></li>
+            <li><a href="#fontes">Fontes de dados</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="footer-label">Projeto</p>
+          <ul>
+            <li><a href="https://github.com/PedroNunes0z/devtrends" target="_blank"
+                rel="noopener noreferrer">Repositório no GitHub</a></li>
+            <li><a href="https://github.com/PedroNunes0z/devtrends#readme" target="_blank"
+                rel="noopener noreferrer">README / instalação</a></li>
+            <li><a href="#como-funciona">Como funciona</a></li>
+            <li><a href="https://pedronunes0z.github.io/devtrends/sitemap.xml">sitemap.xml</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div class="wrap" style="max-width:var(--wrap)">
+          <div class="footer-bottom-inner">
+            <span>api.github.com</span>
+            <span style="display:inline-flex;align-items:center;gap:6px"><img class="so-logo-img"
+                src="./assets/img/Stack_Overflow_logo.svg" alt="Stack Overflow" height="13"></span>
+            <span style="display:inline-flex;align-items:center;gap:6px"><img class="gemini-icon-img"
+                src="./assets/img/Google_Gemini_icon.svg" alt="" width="14" height="14">Google Gemini</span>
+            <span class="push">HTML + CSS + Vanilla JS · GitHub Pages</span>
+          </div>
+        </div>
+      </div>
+    </footer>
   </div>
-  <figure class="frame" style="margin-top:28px">
-    <video controls preload="metadata" poster="./assets/img/og-default.png" style="width:100%;display:block;border:1px solid var(--hairline);border-radius:var(--r-panel);background:var(--surface)">
-      <source src="./assets/video/devtrends.mp4" type="video/mp4">
-      <track kind="captions" label="Sem legendas">
-      Seu navegador não suporta vídeo HTML5. <a href="./assets/video/devtrends.mp4">Baixar o vídeo (MP4)</a>.
-    </video>
-    <figcaption class="code-caption"><span data-icon="arrowUp" data-icon-class="icon-sm"></span> demonstração do DevTrends Insights (MP4, <code class="inline-code">assets/video/devtrends.mp4</code>)</figcaption>
-  </figure>
-</section>
 
-<section class="section wrap" id="fontes">
-  <div class="section-head">
-    <h2 class="h2 headline two-tone">Rotas e cotas. <span>O que cada consulta custa.</span></h2>
-    <div class="detail"><p>O GitHub permite 60 requisições por hora sem token e 5.000 com token. A Stack Exchange API aceita 300 por dia sem chave. Nada roda em servidor: tudo é chamado pelo seu navegador.</p><p class="index"><a href="sitemap.xml">baixar sitemap →</a></p></div>
-  </div>
-  <div class="table-wrap" style="margin-top:28px"><table><thead><tr><th>Fonte</th><th>Método</th><th>Endpoint</th><th>Autenticação</th><th>Cache</th></tr></thead><tbody>
-    <tr><th scope="row" class="mono" style="font-size:13px">GitHub REST</th><td class="mono" style="color:var(--fn);font-size:12px">GET</td><td>api.github.com</td><td class="origin">token opcional</td><td class="origin">60 min</td></tr><tr><th scope="row" class="mono" style="font-size:13px">Stack Exchange</th><td class="mono" style="color:var(--fn);font-size:12px">GET</td><td>api.stackexchange.com/2.3</td><td class="origin">key opcional</td><td class="origin">60 min</td></tr><tr><th scope="row" class="mono" style="font-size:13px">Scraper local</th><td class="mono" style="color:var(--fn);font-size:12px">GET</td><td>127.0.0.1:8787 (opcional)</td><td class="origin">nenhuma</td><td class="origin">—</td></tr><tr><th scope="row" class="mono" style="font-size:13px">Gemini</th><td class="mono" style="color:var(--fn);font-size:12px">POST</td><td>generativelanguage.googleapis.com</td><td class="origin">chave no painel</td><td class="origin">—</td></tr>
-  </tbody></table></div>
-</section>
-
-<section class="section wrap">
-  <div class="sample-head"><h2 class="h2 two-tone">O que está implementado. <span>Sem slide de marketing.</span></h2><span class="eyebrow">4.0 Capacidades →</span></div>
-  <div class="feature-grid"><div class="feature-cell"><h3 class="h3">Tres fontes, um numero</h3><p>GitHub REST, Stack Overflow e interpretacao do Gemini em uma unica resposta, montada no navegador.</p><code>DEVTRENDS_DATA.getInsights(&quot;rust&quot;, { focus: &quot;carreira&quot; })</code></div><div class="feature-cell"><h3 class="h3">Origem em cada valor</h3><p>Cada widget declara a origem e sinaliza quando a cota publica esgotou ou o scraping foi bloqueado.</p><code>sources.github = &quot;github-api&quot;</code></div><div class="feature-cell"><h3 class="h3">Opcoes na interface</h3><p>Foco da analise, profundidade, perfil do desenvolvedor e tecnologia de comparacao sao selecionados pelo usuario e enviados ao Gemini.</p><code>{ focus: &quot;carreira&quot;, depth: &quot;profunda&quot; }</code></div><div class="feature-cell"><h3 class="h3">Saida estruturada, nao texto puro</h3><p>Gemini devolve JSON com score breakdown, comparativo e projecao. Renderizado como barras, cards e tabelas, nunca texto solto.</p><code>ai.scoreBreakdown.popularidade</code></div><div class="feature-cell"><h3 class="h3">Rodizio de chaves Gemini</h3><p>Multiplas chaves com rotacao automatica. Adicione, remova e acompanhe estatisticas de cada chave no painel Config.</p><code>DEVTRENDS.keys.add(&quot;AIza...&quot;)</code></div><div class="feature-cell"><h3 class="h3">Fundo ditherizado</h3><p>Port vanilla do Dither Field em WebGL2 ocupando a pagina inteira, com frame estatico e fallback CSS.</p><code>assets/js/dither-field.js</code></div></div>
-</section>
-
-<section class="section wrap" id="tecnologias">
-  <div class="section-head"><h2 class="h2 headline two-tone">Catálogo rápido. <span>Clique e a análise roda na hora.</span></h2>
-    <div class="detail"><p>Cada item dispara a análise no clique: GitHub REST, Stack Overflow, o scraper do DEV.TO e o Gemini, sem relatório pronto.</p><p class="index">5.0 Índice →</p></div></div>
-  <div class="tech-grid" style="margin-top:28px"><div class="tech-row"><a href="#analise" data-analyze="React">React</a><span class="repo">facebook/react</span></div><div class="tech-row"><a href="#analise" data-analyze="Vue.js">Vue.js</a><span class="repo">vuejs/core</span></div><div class="tech-row"><a href="#analise" data-analyze="Next.js">Next.js</a><span class="repo">vercel/next.js</span></div><div class="tech-row"><a href="#analise" data-analyze="TypeScript">TypeScript</a><span class="repo">microsoft/TypeScript</span></div><div class="tech-row"><a href="#analise" data-analyze="Python">Python</a><span class="repo">python/cpython</span></div><div class="tech-row"><a href="#analise" data-analyze="Rust">Rust</a><span class="repo">rust-lang/rust</span></div><div class="tech-row"><a href="#analise" data-analyze="Go">Go</a><span class="repo">golang/go</span></div><div class="tech-row"><a href="#analise" data-analyze="Svelte">Svelte</a><span class="repo">sveltejs/svelte</span></div><div class="tech-row"><a href="#analise" data-analyze="Angular">Angular</a><span class="repo">angular/angular</span></div><div class="tech-row"><a href="#analise" data-analyze="Node.js">Node.js</a><span class="repo">nodejs/node</span></div><div class="tech-row"><a href="#analise" data-analyze="Tailwind CSS">Tailwind CSS</a><span class="repo">tailwindlabs/tailwindcss</span></div><div class="tech-row"><a href="#analise" data-analyze="Astro">Astro</a><span class="repo">withastro/astro</span></div><div class="tech-row"><a href="#analise" data-analyze="Bun">Bun</a><span class="repo">oven-sh/bun</span></div><div class="tech-row"><a href="#analise" data-analyze="Kubernetes">Kubernetes</a><span class="repo">kubernetes/kubernetes</span></div><div class="tech-row"><a href="#analise" data-analyze="PyTorch">PyTorch</a><span class="repo">pytorch/pytorch</span></div></div>
-</section>
-
-<section class="section wrap">
-  <div class="faq-grid"><div><h2 class="h2 two-tone">Perguntas frequentes. <span>Inclusive sobre o que não é real.</span></h2></div>
-  <dl class="faq-list"><div class="faq-item"><dt>O que é o Índice de Vitalidade?</dt><dd>Uma nota de 0 a 100 que combina popularidade no GitHub (estrelas, forks, atividade recente) com suporte da comunidade no Stack Overflow (volume de dúvidas e taxa de perguntas sem resposta). O Gemini interpreta os dados e devolve a nota, a tendência e as tags de saúde.</dd></div><div class="faq-item"><dt>De onde vêm os dados?</dt><dd>Da GitHub REST API, da Stack Exchange API e, quando você roda tools/scraper.mjs localmente, de scraping do DEV.TO (home, trending e busca por tag). Cada widget exibe a origem e avisa quando um dado é estimado.</dd></div><div class="faq-item"><dt>O histórico do gráfico é real?</dt><dd>O ponto final de cada série é o valor real atual. A curva histórica é modelada a partir desse total, da idade do repositório e da velocidade real dos últimos stargazers. O gráfico identifica o que é estimativa.</dd></div><div class="faq-item"><dt>Preciso de chaves de API?</dt><dd>Não. GitHub e Stack Overflow funcionam nas cotas públicas. Sem chave Gemini o relatório usa uma heurística local determinística, sinalizada na interface. As chaves ficam apenas no localStorage do seu navegador.</dd></div></dl></div>
-</section>
-
-<section class="section wrap"><div class="nested cta">
-  <div><p style="font-size:22px;font-weight:500;margin:0">Consulte uma tecnologia.</p><p class="prose" style="margin:4px 0 0">A resposta é a mesma que as APIs entregam, com a origem de cada número.</p></div>
-  <div class="actions"><a class="btn btn-primary" href="#analise" data-analyze="Vue.js">Analisar Vue.js <span data-icon="arrowRight" data-icon-class="icon-sm"></span></a><a class="btn btn-ghost" href="https://github.com/PedroNunes0z/devtrends" target="_blank" rel="noopener noreferrer">Código-fonte <span data-icon="github" data-icon-class="icon-sm"></span></a></div>
-</div></section></main>
-<footer class="footer"><div class="wrap footer-grid">
-  <div><p class="footer-title">devtrends/insights</p><p class="prose" style="margin-top:12px">Índice de Vitalidade para decidir o que estudar ou qual stack adotar, com dados que você pode verificar.</p><p class="footer-meta">v2.0.0 · vanilla JS · MIT · pt-BR</p></div>
-  <div><p class="footer-label">Páginas</p><ul>
-    <li><a href="index.html">Início</a></li>
-    <li><a href="#analise" data-analyze="React">React</a></li>
-    <li><a href="#analise" data-analyze="Vue.js">Vue.js</a></li>
-    <li><a href="#analise" data-analyze="Rust">Rust</a></li>
-    <li><a href="#fontes">Fontes de dados</a></li>
-  </ul></div>
-  <div><p class="footer-label">Projeto</p><ul>
-    <li><a href="https://github.com/PedroNunes0z/devtrends" target="_blank" rel="noopener noreferrer">Repositório no GitHub</a></li>
-    <li><a href="https://github.com/PedroNunes0z/devtrends#readme" target="_blank" rel="noopener noreferrer">README / instalação</a></li>
-    <li><a href="#como-funciona">Como funciona</a></li>
-    <li><a href="https://pedronunes0z.github.io/devtrends/sitemap.xml">sitemap.xml</a></li>
-  </ul></div>
-</div>
-<div class="footer-bottom"><div class="wrap" style="max-width:var(--wrap)"><div class="footer-bottom-inner">
-  <span>api.github.com</span>
-  <span style="display:inline-flex;align-items:center;gap:6px"><img class="so-logo-img" src="./assets/img/Stack_Overflow_logo.svg" alt="Stack Overflow" height="13"></span>
-  <span style="display:inline-flex;align-items:center;gap:6px"><img class="gemini-icon-img" src="./assets/img/Google_Gemini_icon.svg" alt="" width="14" height="14">Google Gemini</span>
-  <span class="push">HTML + CSS + Vanilla JS · GitHub Pages</span>
-</div></div></div></footer>
-</div>
-
-<script src="./assets/js/config.js"></script>
-<script src="./assets/js/icons.js"></script>
-<script src="./assets/js/dither-field.js"></script>
-<script src="./assets/js/number-ticker.js"></script>
-<script src="./assets/js/highlight.js"></script>
-<script src="./assets/js/data.js"></script>
-<script src="./assets/js/widgets.js"></script>
-<script src="./assets/js/app.js"></script>
+  <script src="./assets/js/config.js"></script>
+  <script src="./assets/js/icons.js"></script>
+  <script src="./assets/js/dither-field.js"></script>
+  <script src="./assets/js/number-ticker.js"></script>
+  <script src="./assets/js/highlight.js"></script>
+  <script src="./assets/js/data.js"></script>
+  <script src="./assets/js/widgets.js"></script>
+  <script src="./assets/js/app.js"></script>
 </body>
+
 </html>
