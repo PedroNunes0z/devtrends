@@ -35,12 +35,6 @@
     return '<img class="so-logo-img" src="' + getHome() + '/assets/img/Stack_Overflow_logo.svg" alt="Stack Overflow" height="' + h + '"' + st + '>';
   }
 
-  function devLogo(height, extraStyle) {
-    var h = height || 13;
-    var st = extraStyle ? ' style="' + extraStyle + '"' : '';
-    return '<img class="so-logo-img" src="' + getHome() + '/assets/img/Dev_Logo.webp" alt="DEV Community" height="' + h + '"' + st + '>';
-  }
-
   function hnLogo(size) {
     var s = size || 14;
     return '<svg class="hn-logo" width="' + s + '" height="' + s + '" viewBox="0 0 24 24" role="img" aria-label="Hacker News" style="border-radius:3px;flex:none;vertical-align:-2px"><rect width="24" height="24" fill="#FF6600"/><path d="M10.6 13.9 6.4 6.5h2.3l2.6 4.9c.05.1.1.2.15.3h.02c.04-.1.09-.2.14-.3l2.7-4.9H17l-4.3 7.4v4.2h-2.1v-4.2z" fill="#fff"/></svg>';
@@ -58,8 +52,6 @@
     "github-api": "GitHub REST API",
     "github-html": "GitHub página pública",
     "stackexchange-api": "Stack Exchange API",
-    "devto-scrape": "scraping DEV.TO (tools/scraper.mjs)",
-    "devto-api": "DEV.TO API pública",
     "hn-algolia": "Hacker News API pública (Algolia)",
     demo: "dados de demonstração",
     "heuristica-local": "heurística local",
@@ -372,35 +364,6 @@
       '<ul class="panel questions" style="margin-top:28px">' + items + '</ul></section>';
   }
 
-  /* --- DEV.TO: project's own scraping + sample ------------------------------ */
-  function devtoSection(r) {
-    var dt = r.devto ? r.devto : null;
-    if (!dt) return "";
-    var process = 'Processo: <code class="inline-code">' + esc(dt.homeUrl || "https://dev.to/") + '</code> (publicações recentes) · ' +
-      '<code class="inline-code">/trending</code> (tags em alta, posts em 7 dias) · ' +
-      '<code class="inline-code">/search?q=' + esc(dt.tag) + '</code> (busca; cai para <code class="inline-code">/t/' + esc(dt.tag) + '</code>) — via <a href="' + esc(dt.tagUrl) + '" target="_blank" rel="noopener noreferrer">' + esc(dt.tagUrl) + '</a>';
-    var trendingTag = dt.trending && dt.trending.tagInTrending
-      ? '<li class="health-tag pos"><span aria-hidden="true">+</span><span>#' + esc(dt.tag) + ' em alta no trending · ' + (dt.trending.postsLast7Days || "?") + ' posts/7d</span></li>'
-      : "";
-    var list = (dt.recentQuestions || []).slice(0, 8);
-    var body = list.length
-      ? '<ul class="panel questions" style="margin-top:28px">' + list.map(function (p) {
-          return '<li class="question-row">' +
-            '<span class="state ' + (p.unanswered ? "open" : "answered") + '">' + (p.unanswered ? "sem comentários" : p.answers + " coment.") + '</span>' +
-            '<a href="' + esc(p.url) + '" target="_blank" rel="noopener noreferrer">' + esc(p.title) + '</a>' +
-            '<span class="votes">' + p.votes + ' reactions</span>' +
-            (p.askedAt ? '<span class="date">' + new Date(p.askedAt).toLocaleDateString("pt-BR") + '</span>' : "") +
-            '</li>';
-        }).join("") + '</ul>'
-      : '<div class="status-line" style="margin-top:28px">' + icon("info", "icon-sm") + '<span>' + esc(dt.note || "Nenhuma publicação recuperada do DEV.TO.") + '</span></div>';
-    return '<section class="section" aria-labelledby="devto-h">' +
-      '<div class="section-head"><h2 class="h2 headline two-tone" id="devto-h">DEV.TO ' + devLogo(16) + '. <span>' + (dt.source === "devto-scrape" ? "Raspado na hora pelo scraper do projeto." : "Publicações da tag, via API pública do dev.to.") + '</span></h2>' +
-      '<div class="detail"><p style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>' + process + '</span></p><p class="index">7.0 DEV.TO →</p></div></div>' +
-      (trendingTag ? '<ul class="health-tags" style="margin-top:16px">' + trendingTag + '</ul>' : "") +
-      body +
-      '</section>';
-  }
-
   /* --- Hacker News: buzz via Algolia Search API ----------------------------- */
   function hnSection(r) {
     var hn = r.hn ? r.hn : null;
@@ -424,7 +387,7 @@
     if (hn.source !== "hn-algolia") {
       return '<section class="section" aria-labelledby="hn-h">' +
         '<div class="section-head"><h2 class="h2 headline two-tone" id="hn-h">HACKER NEWS ' + hnLogo(16) + '. <span>Buzz da comunidade.</span></h2>' +
-        '<div class="detail"><p style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>' + process + '</span></p><p class="index">8.0 HACKER NEWS →</p></div></div>' +
+        '<div class="detail"><p style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>' + process + '</span></p><p class="index">7.0 HACKER NEWS →</p></div></div>' +
         '<div class="status-line" style="margin-top:28px">' + icon("info", "icon-sm") + '<span>' + esc(hn.note || "Dados do Hacker News indisponíveis.") + '</span></div>' +
         '</section>';
     }
@@ -441,7 +404,7 @@
       : '<div class="status-line" style="margin-top:28px">' + icon("info", "icon-sm") + '<span>Nenhum título mencionou "' + esc(hn.query) + '" nos últimos 7 dias.</span></div>';
     return '<section class="section" aria-labelledby="hn-h">' +
       '<div class="section-head"><h2 class="h2 headline two-tone" id="hn-h">HACKER NEWS ' + hnLogo(16) + '. <span>Buzz da comunidade, medido em menções a títulos.</span></h2>' +
-      '<div class="detail"><p style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>' + process + '</span></p><p class="index">8.0 HACKER NEWS →</p></div></div>' +
+      '<div class="detail"><p style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>' + process + '</span></p><p class="index">7.0 HACKER NEWS →</p></div></div>' +
       '<div class="proj-grid" style="margin-top:28px">' +
         '<div class="proj-card panel">' +
           '<div class="proj-card-label">Títulos na última semana ' + hnLogo(12) + '</div>' +
@@ -494,7 +457,6 @@
     var ghApiLink = ghRepoName ? window.DEVTRENDS.config.githubApi + '/repos/' + esc(ghRepoName) : '';
     var ghWebLink = ghRepoName ? 'https://github.com/' + esc(ghRepoName) : '';
     var soLink = r.stackoverflow && r.stackoverflow.tagUrl ? esc(r.stackoverflow.tagUrl) : '#';
-    var dtLink = r.devto && r.devto.tagUrl ? esc(r.devto.tagUrl) : '';
     var hnLink = r.hn && r.hn.searchUrl && r.hn.source === "hn-algolia" ? esc(r.hn.searchUrl) : '';
 
     return '<section class="section"><aside class="nested source-notice" aria-label="Proveniência dos dados">' +
@@ -505,7 +467,6 @@
         (ghWebLink ? '<a class="btn-link" href="' + ghWebLink + '" target="_blank" rel="noopener noreferrer">GitHub repo ' + icon("arrowUpRight", "icon-sm") + '</a>' : '') +
         (ghApiLink ? '<a class="btn-link" href="' + ghApiLink + '" target="_blank" rel="noopener noreferrer">GitHub REST ' + icon("arrowUpRight", "icon-sm") + '</a>' : '') +
         '<a class="btn-link" href="' + soLink + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px">' + soLogo(13) + ' ' + icon("arrowUpRight", "icon-sm") + '</a>' +
-        (dtLink ? '<a class="btn-link" href="' + dtLink + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px">' + devLogo(13) + ' ' + icon("arrowUpRight", "icon-sm") + '</a>' : '') +
         (hnLink ? '<a class="btn-link" href="' + hnLink + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px">' + hnLogo(13) + ' ' + icon("arrowUpRight", "icon-sm") + '</a>' : '') +
       '</div></aside></section>';
   }
@@ -521,7 +482,6 @@
       timeline(report) +
       metrics(report) +
       questions(report) +
-      devtoSection(report) +
       hnSection(report) +
       sources(report);
     window.DEVTRENDS_TICKER.mount(container);

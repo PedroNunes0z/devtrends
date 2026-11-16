@@ -10,7 +10,7 @@
 
    User-selected options (focus, depth, experience) are captured in the UI
    and passed into getInsights(), which includes them in the Gemini prompt
-   alongside GitHub, Stack Overflow and DEV.TO scraper data.
+   alongside GitHub, Stack Overflow and Hacker News data.
 
    Gemini API keys are managed in a dedicated rotation panel with add/remove,
    active-key indicator, and call/error statistics.

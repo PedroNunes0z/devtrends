@@ -19,12 +19,9 @@
     githubApi: "https://api.github.com",
     stackexchangeApi: "https://api.stackexchange.com/2.3",
     stackOverflow: "https://stackoverflow.com",
-    devTo: "https://dev.to",
     hnAlgolia: "https://hn.algolia.com/api/v1",
     geminiApi: "https://generativelanguage.googleapis.com/v1beta",
     geminiModel: "gemini-3.5-flash-lite",
-    /* Optional dependency-free scraper you run locally (tools/scraper.mjs). */
-    scraperLocal: "http://127.0.0.1:8787/api/devto",
     cacheTtlMinutes: 60,
     timeoutMs: 9000,
     stargazerSamplePages: 2,
@@ -83,11 +80,6 @@
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stored)); } catch (e) { /* private mode */ }
     Object.assign(config, partial);
     return config;
-  }
-
-  function isLocal() {
-    var h = location.hostname;
-    return h === "localhost" || h === "127.0.0.1" || h === "0.0.0.0" || h === "";
   }
 
   /* --- Key rotation API --- */
@@ -182,7 +174,6 @@
     defaults: DEFAULTS,
     save: save,
     stored: stored,
-    isLocal: isLocal,
     hasGemini: hasGemini,
     hasGithubToken: hasGithubToken,
     /* Key rotation */

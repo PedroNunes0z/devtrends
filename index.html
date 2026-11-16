@@ -34,7 +34,7 @@
     rel="stylesheet">
   <link rel="stylesheet" href="./assets/css/styles.css">
   <script
-    type="application/ld+json">[{"@context":"https://schema.org","@type":"WebSite","name":"DevTrends Insights","url":"https://pedronunes0z.github.io/devtrends/","inLanguage":"pt-BR","potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://pedronunes0z.github.io/devtrends/?tech={search_term_string}"},"query-input":"required name=search_term_string"}},{"@context":"https://schema.org","@type":"SoftwareApplication","name":"DevTrends Insights","applicationCategory":"DeveloperApplication","operatingSystem":"Web","url":"https://pedronunes0z.github.io/devtrends/","description":"Índice de Vitalidade de tecnologias a partir de dados reais do GitHub e do Stack Overflow","offers":{"@type":"Offer","price":"0","priceCurrency":"BRL"}},{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"O que é o Índice de Vitalidade?","acceptedAnswer":{"@type":"Answer","text":"Uma nota de 0 a 100 que combina popularidade no GitHub (estrelas, forks, atividade recente) com suporte da comunidade no Stack Overflow (volume de dúvidas e taxa de perguntas sem resposta). O Gemini interpreta os dados e devolve a nota, a tendência e as tags de saúde."}},{"@type":"Question","name":"De onde vêm os dados?","acceptedAnswer":{"@type":"Answer","text":"Da GitHub REST API, da Stack Exchange API, da API pública de busca do Hacker News (Algolia) e, quando você roda tools/scraper.mjs localmente, de scraping do DEV.TO (home, trending e busca por tag). Cada widget exibe a origem e avisa quando um dado é estimado."}},{"@type":"Question","name":"O histórico do gráfico é real?","acceptedAnswer":{"@type":"Answer","text":"O ponto final de cada série é o valor real atual. A curva histórica é modelada a partir desse total, da idade do repositório e da velocidade real dos últimos stargazers. O gráfico identifica o que é estimativa."}},{"@type":"Question","name":"Preciso de chaves de API?","acceptedAnswer":{"@type":"Answer","text":"Não. GitHub e Stack Overflow funcionam nas cotas públicas. Sem chave Gemini o relatório usa uma heurística local determinística, sinalizada na interface. As chaves ficam apenas no localStorage do seu navegador."}}]}]</script>
+    type="application/ld+json">[{"@context":"https://schema.org","@type":"WebSite","name":"DevTrends Insights","url":"https://pedronunes0z.github.io/devtrends/","inLanguage":"pt-BR","potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://pedronunes0z.github.io/devtrends/?tech={search_term_string}"},"query-input":"required name=search_term_string"}},{"@context":"https://schema.org","@type":"SoftwareApplication","name":"DevTrends Insights","applicationCategory":"DeveloperApplication","operatingSystem":"Web","url":"https://pedronunes0z.github.io/devtrends/","description":"Índice de Vitalidade de tecnologias a partir de dados reais do GitHub e do Stack Overflow","offers":{"@type":"Offer","price":"0","priceCurrency":"BRL"}},{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"O que é o Índice de Vitalidade?","acceptedAnswer":{"@type":"Answer","text":"Uma nota de 0 a 100 que combina popularidade no GitHub (estrelas, forks, atividade recente) com suporte da comunidade no Stack Overflow (volume de dúvidas e taxa de perguntas sem resposta). O Gemini interpreta os dados e devolve a nota, a tendência e as tags de saúde."}},{"@type":"Question","name":"De onde vêm os dados?","acceptedAnswer":{"@type":"Answer","text":"Da GitHub REST API, da Stack Exchange API e da API pública de busca do Hacker News (Algolia), todas em tempo real. Cada widget exibe a origem e avisa quando um dado é estimado."}},{"@type":"Question","name":"O histórico do gráfico é real?","acceptedAnswer":{"@type":"Answer","text":"O ponto final de cada série é o valor real atual. A curva histórica é modelada a partir desse total, da idade do repositório e da velocidade real dos últimos stargazers. O gráfico identifica o que é estimativa."}},{"@type":"Question","name":"Preciso de chaves de API?","acceptedAnswer":{"@type":"Answer","text":"Não. GitHub e Stack Overflow funcionam nas cotas públicas. Sem chave Gemini o relatório usa uma heurística local determinística, sinalizada na interface. As chaves ficam apenas no localStorage do seu navegador."}}]}]</script>
 </head>
 
 <body data-page="home" data-home=".">
@@ -98,9 +98,6 @@
           <span class="brand-sep">×</span>
           <span class="brand-item"><img class="so-logo-img" src="./assets/img/Stack_Overflow_logo.svg"
               alt="Stack Overflow" height="14"></span>
-          <span class="brand-sep">×</span>
-          <span class="brand-item"><img class="so-logo-img" src="./assets/img/Dev_Logo.webp"
-              alt="DEV Community" height="14"></span>
           <span class="brand-sep">×</span>
           <span class="brand-item"><svg class="hn-logo" width="14" height="14" viewBox="0 0 24 24" role="img"
               aria-label="Hacker News" style="border-radius:3px;vertical-align:-2px">
@@ -255,16 +252,14 @@ console.log(repo.stargazers_count, tag.items[0].count);</code></pre>
             <div>
               <p class="step" style="color:var(--str);display:flex;align-items:center"><img class="so-logo-img"
                   src="./assets/img/Stack_Overflow_logo.svg" alt="Stack Overflow" height="15"
-                  style="margin-right:8px"><img class="so-logo-img" src="./assets/img/Dev_Logo.webp" alt="DEV Community"
-                  height="15" style="margin-right:8px"><svg class="hn-logo" width="15" height="15" viewBox="0 0 24 24"
+                  style="margin-right:8px"><svg class="hn-logo" width="15" height="15" viewBox="0 0 24 24"
                   role="img" aria-label="Hacker News" style="border-radius:3px;margin-right:8px">
                   <rect width="24" height="24" fill="#FF6600" />
                   <path d="M10.6 13.9 6.4 6.5h2.3l2.6 4.9c.05.1.1.2.15.3h.02c.04-.1.09-.2.14-.3l2.7-4.9H17l-4.3 7.4v4.2h-2.1v-4.2z"
                     fill="#fff" />
                 </svg>02 · stackoverflow.js</p>
-              <p class="step-desc" style="margin-top:10px">Totais e amostra de perguntas recentes da tag. Em localhost,
-                o scraper próprio (tools/scraper.mjs) raspa o DEV.TO (home, trending e busca); no Pages, as APIs
-                públicas do dev.to e do Hacker News assumem.</p>
+              <p class="step-desc" style="margin-top:10px">Totais e amostra de perguntas recentes da tag via Stack
+                Exchange API, e o buzz semanal no Hacker News em tempo real via API pública de busca.</p>
             </div>
             <div class="step-code">
               <figure class="code-block " data-lang="js">
@@ -275,7 +270,7 @@ console.log(repo.stargazers_count, tag.items[0].count);</code></pre>
 const totals = await fetch(
   `https://api.stackexchange.com/2.3/tags/${tag}/info?site=stackoverflow`
 ).then((r) =&gt; r.json());
-// tools/scraper.mjs raspa dev.to (/, /trending, /search?q=tag) em localhost
+// o buzz semanal vem da API pública de busca do Hacker News (tempo real)
 console.log(totals.items[0].count);</code></pre>
                 </div>
               </figure>
@@ -432,7 +427,7 @@ console.log(totals.items[0].count);</code></pre>
         <div class="section-head">
           <h2 class="h2 headline two-tone">Catálogo rápido. <span>Clique e a análise roda na hora.</span></h2>
           <div class="detail">
-            <p>Cada item dispara a análise no clique: GitHub REST, Stack Overflow, o scraper do DEV.TO e o Gemini, sem
+            <p>Cada item dispara a análise no clique: GitHub REST, Stack Overflow, Hacker News e o Gemini, sem
               relatório pronto.</p>
             <p class="index">5.0 Índice →</p>
           </div>
@@ -483,9 +478,8 @@ console.log(totals.items[0].count);</code></pre>
             </div>
             <div class="faq-item">
               <dt>De onde vêm os dados?</dt>
-              <dd>Da GitHub REST API, da Stack Exchange API e, quando você roda tools/scraper.mjs localmente, de
-                scraping do DEV.TO (home, trending e busca por tag). O buzz no Hacker News vem da API pública de busca
-                (Algolia), com CORS liberado, em qualquer ambiente. Cada widget exibe a origem e avisa quando um dado é
+              <dd>Em tempo real, da GitHub REST API, da Stack Exchange API e da API pública de busca do Hacker News
+                (Algolia), com CORS liberado. Cada widget exibe a origem e avisa quando um dado é
                 estimado.</dd>
             </div>
             <div class="faq-item">

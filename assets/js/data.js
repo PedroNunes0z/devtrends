@@ -3,8 +3,8 @@
 
    Sources:
      · GitHub REST API            (CORS enabled; optional token)
-     · tools/scraper.mjs          (optional local scraping API of dev.to, only on localhost)
      · Stack Exchange API v2.3    (CORS enabled; fallback for SO totals/sample)
+     · Hacker News Search API     (Algolia; CORS enabled; real time, no cache)
      · Google Gemini              (structured output; key rotation supported)
 
    Every layer degrades explicitly: the report always shows where each number
@@ -246,7 +246,7 @@
     });
   }
 
-  /* --- Stack Overflow (totals) + DEV.TO (optional local scraping) --------- */
+  /* --- Stack Overflow (totals + recent sample) ---------------------------- */
   function fromApiQuestions(tech) {
     return cachedJson(seUrl("/questions", {
       tagged: tech.soTag, sort: "creation", order: "desc", pagesize: String(CFG.soSampleSize)
@@ -322,85 +322,7 @@
     }).catch(function () { return Object.assign(base, demoData(tech)); });
   }
 
-  /* --- DEV.TO: projeto's own scraping + public JSON API -------------------- */
-  var DEVTO_TAG_ALIASES = {
-    "reactjs": "react", "vue.js": "vue", "angular.js": "angular",
-    "node-js": "node", "next-js": "nextjs", "nest-js": "nestjs",
-    "tailwind-css": "tailwindcss", "postgres": "postgresql"
-  };
-  function devToTag(soTag) {
-    var t = (soTag || "").toLowerCase();
-    if (DEVTO_TAG_ALIASES[t]) return DEVTO_TAG_ALIASES[t];
-    var looser = t.replace(/\.[jt]sx?$/, "").replace(/-js$/, "js");
-    return DEVTO_TAG_ALIASES[looser] || looser;
-  }
-
-  function fromDevtoApi(dtag) {
-    /* The public JSON feed of dev.to sends Access-Control-Allow-Origin: *,
-       so it works on GitHub Pages, where scraping HTML is impossible. */
-    return cachedJson(CFG.devTo + "/api/articles?tag=" + encodeURIComponent(dtag) + "&per_page=" + String(CFG.soSampleSize))
-      .then(function (list) {
-        return (list || []).map(function (a) {
-          return {
-            title: a.title || "",
-            url: a.url || (CFG.devTo + a.path),
-            answers: Number(a.comments_count) || 0,
-            votes: Number(a.public_reactions_count) || 0,
-            views: null,
-            tags: a.tag_list || [],
-            askedAt: a.published_at ? new Date(a.published_at).toISOString() : null,
-            unanswered: !(a.comments_count > 0)
-          };
-        });
-      });
-  }
-
-  function getDevTo(tech) {
-    var dtag = devToTag(tech.soTag);
-    var base = {
-      tag: dtag,
-      tagUrl: CFG.devTo + "/t/" + encodeURIComponent(dtag),
-      searchUrl: CFG.devTo + "/search?utf8=%E2%9C%93&q=" + encodeURIComponent(dtag),
-      homeUrl: CFG.devTo + "/"
-    };
-    function viaApi() {
-      return fromDevtoApi(dtag).catch(function (e) {
-        console.warn("[devto-api]", e.message);
-        return [];
-      }).then(function (list) {
-        return Object.assign({}, base, {
-          source: list.length ? "devto-api" : "indisponivel",
-          sampleSize: list.length,
-          recentQuestions: list,
-          trending: null,
-          note: list.length
-            ? "Publicações da tag via API pública JSON do dev.to (CORS liberado; em localhost o tools/scraper.mjs raspa de verdade)."
-            : "DEV.TO indisponível no momento."
-        });
-      });
-    }
-    if (!window.DEVTRENDS.isLocal()) return viaApi();
-    /* Localhost: the scraper the project developed hits the real pages. */
-    return request(CFG.scraperLocal + "?tag=" + encodeURIComponent(tech.soTag) + "&limit=" + CFG.soSampleSize, { timeoutMs: 7500 })
-      .then(function (scraped) {
-        if (scraped && Array.isArray(scraped.recentQuestions) && scraped.recentQuestions.length) {
-          return Object.assign({}, base, {
-            source: "devto-scrape",
-            sampleSize: scraped.recentQuestions.length,
-            recentQuestions: scraped.recentQuestions,
-            trending: scraped.trending || null,
-            note: "Scraping do dev.to (/, /trending, /search?q=tag) executado pelo scraper do projeto (tools/scraper.mjs)."
-          });
-        }
-        return viaApi();
-      })
-      .catch(function (e) {
-        console.warn("[devto-scrape]", e && e.message);
-        return viaApi();
-      });
-  }
-
-  /* --- Hacker News: Algolia Search API (the HN search backend, CORS *) ---- */
+  /* --- Hacker News: Algolia Search API (the HN search backend, CORS *), real time ---- */
   /* Terms that are common English words would inflate title matching.       */
   var HN_COMMON_WORDS = { "go": true, "r": true, "c": true, "ai": true };
 
@@ -426,11 +348,13 @@
     var url = CFG.hnAlgolia + "/search_by_date?tags=story&hitsPerPage=1000&query=" +
       encodeURIComponent(tech.name) +
       (numericFilter ? "&numericFilters=" + encodeURIComponent(numericFilter) : "");
-    return cachedJson(url, { timeoutMs: CFG.timeoutMs + 3000 });
+    /* Real time: HN queries never use the browser cache, so every analysis
+       run fetches fresh mentions straight from the HN search backend. */
+    return request(url, { timeoutMs: CFG.timeoutMs + 3000 });
   }
 
   function hnFrontPage(tech) {
-    return cachedJson(CFG.hnAlgolia + "/search?tags=front_page&hitsPerPage=30", { timeoutMs: CFG.timeoutMs })
+    return request(CFG.hnAlgolia + "/search?tags=front_page&hitsPerPage=30", { timeoutMs: CFG.timeoutMs })
       .then(function (data) {
         var matches = hnTitleMatcher(tech);
         var hits = (data && data.hits) || [];
@@ -702,8 +626,8 @@
     };
   }
 
-  /* --- Build prompt with GitHub + SO + DEV.TO + HN data + user UI options --- */
-  function buildPrompt(tech, github, so, devto, hn, timeline, options) {
+  /* --- Build prompt with GitHub + SO + HN data + user UI options --- */
+  function buildPrompt(tech, github, so, hn, timeline, options) {
     var s = summarizeStars(github);
     var gh = github ? [
       "Repositório: " + github.repo.fullName,
@@ -737,24 +661,6 @@
 
     var series = timeline.filter(function (_, i) { return i % 3 === 0 || i === 11; })
       .map(function (p) { return p.month + ": " + p.stars + " estrelas / " + p.questions + " perguntas" + (p.estimated ? " (estimado)" : " (real)"); }).join("\n");
-
-    /* --- DEV.TO: the project's own scraping (tools/scraper.mjs) or public API --- */
-    var dt = devto || {};
-    var devtoBlock = dt.source === "devto-scrape" || dt.source === "devto-api" ? [
-      "== DEV.TO (API desenvolvida pelo projeto) ==",
-      dt.source === "devto-scrape"
-        ? "Origem: scraping do tools/scraper.mjs raspando dev.to/, /trending e a busca por tag."
-        : "Origem: API pública JSON do dev.to (em localhost, o tools/scraper.mjs raspa as páginas de verdade).",
-      "Tag mapeada no dev.to: " + dt.tag,
-      "Publicações recentes coletadas: " + (dt.sampleSize || 0),
-      dt.recentQuestions && dt.recentQuestions.length > 0
-        ? "Publicações recentes: " + dt.recentQuestions.slice(0, 5).map(function (q) { return "\"" + q.title.slice(0, 70) + "\" (" + q.votes + " reactions, " + q.answers + " comentários)"; }).join("; ")
-        : "",
-      dt.trending && dt.trending.tagInTrending
-        ? "A tag #" + dt.tag + " está em dev.to/trending com " + dt.trending.postsLast7Days + " posts em 7 dias."
-        : dt.source === "devto-scrape" ? "A tag #" + dt.tag + " não está em dev.to/trending agora." : "",
-      dt.trending && dt.trending.tagInTrending ? "Publicações na home do dev.to com a tag: " + (dt.trending.tagOnHome ? "sim" : "não") : ""
-    ].filter(Boolean).join("\n") : "";
 
     /* --- HACKER NEWS: buzz via public Algolia Search API --- */
     var hnBlock = "";
@@ -796,16 +702,16 @@
 
     var compareBlock = compareTech ? "\n\n== TECNOLOGIA DE COMPARAÇÃO SOLICITADA ==\n" + compareTech.name + " (tag: " + compareTech.soTag + ", repo: " + (compareTech.repo || "n/a") + ")\nConsidere esta tecnologia como referência para a recomendação." : "";
 
-    return "Analise a tecnologia \"" + tech.name + "\".\n\n" + userBlock + "\n\n== GITHUB (API pública) ==\n" + gh + "\n\n== STACK OVERFLOW (API pública) ==\n" + soBlock + (devtoBlock ? "\n\n" + devtoBlock : "") + (hnBlock ? "\n\n" + hnBlock : "") + "\n\n== SÉRIE HISTÓRICA (último ponto real) ==\n" + series + compareBlock + "\n\nProduza o JSON completo do schema: indiceVitalidade, tendencia, previsao, resumo, justificativa numérica baseada nos dados, recomendação alinhada ao foco e perfil do usuário, confiança, tags, scoreBreakdown (notas por dimensão), comparativo (pontos fortes, pontos de atenção, alternativas) e projecao (horizonte, risco, momentum).";
+    return "Analise a tecnologia \"" + tech.name + "\".\n\n" + userBlock + "\n\n== GITHUB (API pública) ==\n" + gh + "\n\n== STACK OVERFLOW (API pública) ==\n" + soBlock + (hnBlock ? "\n\n" + hnBlock : "") + "\n\n== SÉRIE HISTÓRICA (último ponto real) ==\n" + series + compareBlock + "\n\nProduza o JSON completo do schema: indiceVitalidade, tendencia, previsao, resumo, justificativa numérica baseada nos dados, recomendação alinhada ao foco e perfil do usuário, confiança, tags, scoreBreakdown (notas por dimensão), comparativo (pontos fortes, pontos de atenção, alternativas) e projecao (horizonte, risco, momentum).";
   }
 
   /* --- Gemini call with key rotation --- */
-  function getGemini(tech, github, so, devto, hn, timeline, options) {
+  function getGemini(tech, github, so, hn, timeline, options) {
     if (!KEYS.count()) return Promise.resolve(heuristic(tech, github, so, options));
-    return callGeminiWithRotation(tech, github, so, devto, hn, timeline, options, 0);
+    return callGeminiWithRotation(tech, github, so, hn, timeline, options, 0);
   }
 
-  function callGeminiWithRotation(tech, github, so, devto, hn, timeline, options, attempt) {
+  function callGeminiWithRotation(tech, github, so, hn, timeline, options, attempt) {
     var maxAttempts = KEYS.count();
     if (attempt >= maxAttempts) {
       var fb = heuristic(tech, github, so, options);
@@ -827,7 +733,7 @@
       timeoutMs: 20000,
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents: [{ role: "user", parts: [{ text: buildPrompt(tech, github, so, devto, hn, timeline, options) }] }],
+        contents: [{ role: "user", parts: [{ text: buildPrompt(tech, github, so, hn, timeline, options) }] }],
         generationConfig: { temperature: 0.35, maxOutputTokens: 2000, responseMimeType: "application/json", responseSchema: SCHEMA }
       })
     }).then(function (data) {
@@ -885,7 +791,7 @@
       /* Rotate to next key and retry */
       if (attempt + 1 < maxAttempts) {
         KEYS.next();
-        return callGeminiWithRotation(tech, github, so, devto, hn, timeline, options, attempt + 1);
+        return callGeminiWithRotation(tech, github, so, hn, timeline, options, attempt + 1);
       }
       /* All keys exhausted — fall back to heuristic */
       var fb = heuristic(tech, github, so, options);
@@ -899,10 +805,10 @@
   function getInsights(input, options) {
     var tech = resolveTech(input);
     var opts = options || {};
-    return Promise.all([getGithub(tech), getStackOverflow(tech), getDevTo(tech), getHackerNews(tech)]).then(function (r) {
-      var github = r[0], so = r[1], devto = r[2], hn = r[3];
+    return Promise.all([getGithub(tech), getStackOverflow(tech), getHackerNews(tech)]).then(function (r) {
+      var github = r[0], so = r[1], hn = r[2];
       var timeline = buildTimeline(github, so);
-      return getGemini(tech, github, so, devto, hn, timeline, opts).then(function (ai) {
+      return getGemini(tech, github, so, hn, timeline, opts).then(function (ai) {
         var warnings = [];
         if (!github) {
           var isRateLimit = lastGithubError && (lastGithubError.indexOf("403") !== -1 || lastGithubError.indexOf("rate limit") !== -1 || lastGithubError.indexOf("cota") !== -1);
@@ -926,14 +832,13 @@
         warnings.push("A série histórica é estimada; apenas o ponto atual e a amostragem de stargazers são reais.");
         if (KEYS.count() > 1) warnings.push("Rodízio de chaves Gemini ativo: " + KEYS.count() + " chaves configuradas.");
         return {
-          tech: tech, github: github, stackoverflow: so, devto: devto, hn: hn, ai: ai, timeline: timeline,
+          tech: tech, github: github, stackoverflow: so, hn: hn, ai: ai, timeline: timeline,
           generatedAt: new Date().toISOString(), warnings: warnings,
           githubError: lastGithubError,
           userOptions: opts,
           sources: {
             github: github ? github.source : "indisponivel",
             stackoverflow: so ? so.source : "indisponivel",
-            devto: devto ? devto.source : "indisponivel",
             hn: hn ? hn.source : "indisponivel",
             ai: ai.source
           }
