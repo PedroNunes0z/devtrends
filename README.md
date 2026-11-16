@@ -17,7 +17,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/PedroNunes0z/devtrends?style=flat-square&logo=github&color=F07178)](https://github.com/PedroNunes0z/devtrends/issues)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-2EA043?style=flat-square&logo=github&logoColor=white)](https://github.com/PedroNunes0z/devtrends/pulls)
 
-Cruza dados reais do **GitHub REST API** com o volume de dúvidas e a taxa de resolução do **Stack Overflow**, as publicações da tag no **DEV.TO** (API pública, com scraper local opcional) e pede ao **Google Gemini** um *Índice de Vitalidade* (0–100), uma previsão de tendência e tags de saúde da comunidade. Todo relatório é gerado no clique de **Analisar** — nada estático no caminho.
+Cruza dados reais do **GitHub REST API** com o volume de dúvidas e a taxa de resolução do **Stack Overflow**, as publicações da tag no **DEV.TO** (API pública, com scraper local opcional), o **buzz no Hacker News** (menções em títulos, semana a semana) e pede ao **Google Gemini** um *Índice de Vitalidade* (0–100), uma previsão de tendência e tags de saúde da comunidade. Todo relatório é gerado no clique de **Analisar** — nada estático no caminho.
 
 Feito com **HTML, CSS e JavaScript puro (Vanilla JS)** — sem framework, sem bundler, sem `node_modules` para rodar. Publicado em **GitHub Pages**.
 
@@ -98,6 +98,7 @@ Edite `config.local.js` e inclua a tag **antes** de `assets/js/config.js` nos HT
 | `stackexchangeApi` | `https://api.stackexchange.com/2.3` | Base da API de fallback |
 | `stackOverflow` | `https://stackoverflow.com` | Links das perguntas |
 | `devTo` | `https://dev.to` | Base do dev.to (API pública de artigos + páginas raspadas pelo scraper) |
+| `hnAlgolia` | `https://hn.algolia.com/api/v1` | API pública de busca do Hacker News (Algolia, CORS liberado) |
 | `geminiApi` | `https://generativelanguage.googleapis.com/v1beta` | Base do Gemini |
 | `geminiModel` | `gemini-3.5-flash-lite` | Modelo com *structured output* |
 | `scraperLocal` | `http://127.0.0.1:8787/api/devto` | Scraper local opcional (DEV.TO) |
@@ -110,7 +111,9 @@ Edite `config.local.js` e inclua a tag **antes** de `assets/js/config.js` nos HT
 
 ---
 
-## 3. Dados do DEV.TO: API pública + scraping (opcional, local)
+## 3. Dados do DEV.TO e do Hacker News
+
+### DEV.TO: API pública + scraping (opcional, local)
 
 O DEV.TO sempre entra no relatório. Em **qualquer ambiente** (inclusive GitHub Pages), o app consome a **API pública de artigos** do dev.to, que libera CORS:
 
@@ -148,6 +151,22 @@ O servidor é um `http.createServer` sem dependências, envia `Access-Control-Al
 Em uma publicação, `votes` são as *reactions*, `answers` são os comentários e `unanswered` significa "sem comentários".
 
 Quando `location.hostname` for `localhost`/`127.0.0.1`, o app tenta esse endpoint primeiro (fonte `devto-scrape`); sem ele, ou em produção, usa a API pública (fonte `devto-api`).
+
+### Hacker News: buzz semanal via API pública de busca
+
+O Hacker News é um ótimo termômetro do que está em alta, e a busca oficial do site é a API pública da **Algolia** (`https://hn.algolia.com/api/v1`), com CORS liberado — funciona em qualquer ambiente, inclusive no GitHub Pages. O app faz três chamadas:
+
+1. `search_by_date?tags=story&numericFilters=created_at_i>agora-7d` — posts da última semana que casam com o termo;
+2. `search_by_date?tags=story&numericFilters=created_at_i>agora-14d,created_at_i<agora-7d` — semana anterior, para a variação;
+3. `search?tags=front_page` — a front page atual, para saber se a tecnologia está na home agora.
+
+O casamento é feito **no título de cada post** com os nomes e aliases do catálogo (ex.: `reactjs` também casa com "React", "react.js"), com contagem de palavras inteiras para evitar falsos positivos. O resultado entra no relatório como uma seção dedicada — menções em títulos nas duas janelas, variação percentual semana a semana, selo de presença na front page e posts recentes com pontos e comentários — e no prompt do Gemini, no formato: *"A tecnologia X foi mencionada em 42 títulos de posts no Hacker News na última semana, um aumento de 20% em relação à semana anterior."*
+
+```
+https://hn.algolia.com/api/v1/search_by_date?tags=story&query=react&numericFilters=created_at_i>1730000000
+```
+
+Fonte no relatório: `hn-algolia`. Termos que são palavras comuns em inglês (ex.: "go") são ignorados no casamento para não inflar o número.
 
 ---
 
@@ -239,11 +258,11 @@ SKILL.md                    sistema de design de referência
 ## 8. Honestidade dos dados e uso do Gemini
 
 - Estrelas, forks, issues, watchers e datas: **GitHub REST API**.
-- Total de perguntas e total sem resposta: **Stack Exchange API**; publicações da tag: **DEV.TO** (API pública, com scraper local opcional).
+- Total de perguntas e total sem resposta: **Stack Exchange API**; publicações da tag: **DEV.TO** (API pública, com scraper local opcional); buzz: **Hacker News** (API pública de busca, menções em títulos 7d vs. 7d anteriores).
 - Frequência de perguntas sem resposta: amostra das perguntas recentes (scraping ou API).
 - Histórico de 12 meses: **estimado** a partir dos totais reais de hoje, da idade do repositório e da velocidade real dos últimos stargazers. O gráfico diz isso explicitamente.
 - Sem chaves Gemini: nota, tendência e tags vêm de uma **heurística local**, identificada na interface.
-- Com chaves Gemini: o prompt inclui obrigatoriamente os dados do **GitHub API**, dados do **Stack Overflow**, dados do **DEV.TO** e as **opções selecionadas pelo usuário** na interface (foco, profundidade, perfil, tecnologia de comparação). A resposta é **sempre estruturada (JSON)** e renderizada como widgets, nunca como texto puro.
+- Com chaves Gemini: o prompt inclui obrigatoriamente os dados do **GitHub API**, dados do **Stack Overflow**, dados do **DEV.TO**, o **buzz do Hacker News** e as **opções selecionadas pelo usuário** na interface (foco, profundidade, perfil, tecnologia de comparação). A resposta é **sempre estruturada (JSON)** e renderizada como widgets, nunca como texto puro.
 - Cada widget mostra a origem; falhas de cota/bloqueio viram avisos, não números inventados silenciosamente.
 - Se o GitHub não responder, estrelas/forks/atividade aparecem como **indisponível** (`—`), a série de estrelas é omitida do gráfico, a confiança cai e a tag `#DadosDoGitHubAusentes` sinaliza a lacuna. Nada é preenchido com `0` ou com uma data inventada.
 

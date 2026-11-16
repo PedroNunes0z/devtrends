@@ -41,6 +41,11 @@
     return '<img class="so-logo-img" src="' + getHome() + '/assets/img/Dev_Logo.webp" alt="DEV Community" height="' + h + '"' + st + '>';
   }
 
+  function hnLogo(size) {
+    var s = size || 14;
+    return '<svg class="hn-logo" width="' + s + '" height="' + s + '" viewBox="0 0 24 24" role="img" aria-label="Hacker News" style="border-radius:3px;flex:none;vertical-align:-2px"><rect width="24" height="24" fill="#FF6600"/><path d="M10.6 13.9 6.4 6.5h2.3l2.6 4.9c.05.1.1.2.15.3h.02c.04-.1.09-.2.14-.3l2.7-4.9H17l-4.3 7.4v4.2h-2.1v-4.2z" fill="#fff"/></svg>';
+  }
+
   function ticker(value, extra) {
     if (value === null || value === undefined || !isFinite(value)) return "&mdash;";
     var attrs = extra || "";
@@ -55,6 +60,7 @@
     "stackexchange-api": "Stack Exchange API",
     "devto-scrape": "scraping DEV.TO (tools/scraper.mjs)",
     "devto-api": "DEV.TO API pública",
+    "hn-algolia": "Hacker News API pública (Algolia)",
     demo: "dados de demonstração",
     "heuristica-local": "heurística local",
     gemini: "Gemini",
@@ -395,6 +401,67 @@
       '</section>';
   }
 
+  /* --- Hacker News: buzz via Algolia Search API ----------------------------- */
+  function hnSection(r) {
+    var hn = r.hn ? r.hn : null;
+    if (!hn) return "";
+    var process = 'Processo: <code class="inline-code">' + esc(hn.siteUrl) + '</code> (front page em HTML estático) · ' +
+      '<code class="inline-code">hn.algolia.com/api/v1/search_by_date</code> (busca por data, menções em títulos) — via <a href="' + esc(hn.searchUrl) + '" target="_blank" rel="noopener noreferrer">busca do HN por "' + esc(hn.query) + '"</a>';
+    var delta = hn.deltaPct === null ? null : hn.deltaPct;
+    var deltaEl = delta === null
+      ? '<span class="mono" style="font-size:12px;color:var(--disabled)">sem base de comparação</span>'
+      : delta > 0
+        ? '<span class="trend-badge up">' + icon("arrowUp", "icon-sm") + '+' + delta + '% vs. semana anterior</span>'
+        : delta < 0
+          ? '<span class="trend-badge down">' + icon("arrowDown", "icon-sm") + delta + '% vs. semana anterior</span>'
+          : '<span class="trend-badge flat">' + icon("arrowRight", "icon-sm") + '0% vs. semana anterior</span>';
+    var fp = hn.frontPage;
+    var fpTag = !fp || !fp.posts
+      ? ""
+      : fp.matches > 0
+        ? '<li class="health-tag pos"><span aria-hidden="true">+</span><span>#na front page do HN agora (' + fp.matches + ' de ' + fp.posts + ' posts)</span></li>'
+        : '<li class="health-tag neu"><span aria-hidden="true">·</span><span>#fora da front page do HN agora (' + fp.posts + ' posts no ar)</span></li>';
+    if (hn.source !== "hn-algolia") {
+      return '<section class="section" aria-labelledby="hn-h">' +
+        '<div class="section-head"><h2 class="h2 headline two-tone" id="hn-h">HACKER NEWS ' + hnLogo(16) + '. <span>Buzz da comunidade.</span></h2>' +
+        '<div class="detail"><p style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>' + process + '</span></p><p class="index">8.0 HACKER NEWS →</p></div></div>' +
+        '<div class="status-line" style="margin-top:28px">' + icon("info", "icon-sm") + '<span>' + esc(hn.note || "Dados do Hacker News indisponíveis.") + '</span></div>' +
+        '</section>';
+    }
+    var list = (hn.recentPosts || []).slice(0, 8);
+    var body = list.length
+      ? '<ul class="panel questions" style="margin-top:28px">' + list.map(function (p) {
+          return '<li class="question-row">' +
+            '<span class="state ' + (p.unanswered ? "open" : "answered") + '">' + (p.unanswered ? "sem comentários" : p.answers + " coment.") + '</span>' +
+            '<a href="' + esc(p.url) + '" target="_blank" rel="noopener noreferrer">' + esc(p.title) + '</a>' +
+            '<span class="votes">' + p.points + ' pontos</span>' +
+            (p.askedAt ? '<span class="date">' + new Date(p.askedAt).toLocaleDateString("pt-BR") + '</span>' : "") +
+            '</li>';
+        }).join("") + '</ul>'
+      : '<div class="status-line" style="margin-top:28px">' + icon("info", "icon-sm") + '<span>Nenhum título mencionou "' + esc(hn.query) + '" nos últimos 7 dias.</span></div>';
+    return '<section class="section" aria-labelledby="hn-h">' +
+      '<div class="section-head"><h2 class="h2 headline two-tone" id="hn-h">HACKER NEWS ' + hnLogo(16) + '. <span>Buzz da comunidade, medido em menções a títulos.</span></h2>' +
+      '<div class="detail"><p style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>' + process + '</span></p><p class="index">8.0 HACKER NEWS →</p></div></div>' +
+      '<div class="proj-grid" style="margin-top:28px">' +
+        '<div class="proj-card panel">' +
+          '<div class="proj-card-label">Títulos na última semana ' + hnLogo(12) + '</div>' +
+          '<div class="proj-card-value">' + ticker(hn.titlesLast7d) + '</div>' +
+        '</div>' +
+        '<div class="proj-card panel">' +
+          '<div class="proj-card-label">Semana anterior</div>' +
+          '<div class="proj-card-value">' + ticker(hn.titlesPrev7d) + '</div>' +
+        '</div>' +
+        '<div class="proj-card panel">' +
+          '<div class="proj-card-label">Variação (buzz)</div>' +
+          '<div class="proj-card-value">' + deltaEl + '</div>' +
+        '</div>' +
+      '</div>' +
+      (fpTag ? '<ul class="health-tags" style="margin-top:16px">' + fpTag + '</ul>' : "") +
+      body +
+      '<div class="timeline-note" style="margin-top:12px"><span class="mono">métrica:</span> posts (stories) cujo título menciona "' + esc(hn.query) + '", contados na API pública de busca do Hacker News; comparação semana a semana indica aceleração do interesse. Cada janela cobre até 1.000 posts.</div>' +
+      '</section>';
+  }
+
   function githubNotice(r) {
     if (r.github) return "";
     var isRateLimit = r.githubError && (r.githubError.indexOf("403") !== -1 || r.githubError.indexOf("rate limit") !== -1 || r.githubError.indexOf("cota") !== -1);
@@ -428,6 +495,7 @@
     var ghWebLink = ghRepoName ? 'https://github.com/' + esc(ghRepoName) : '';
     var soLink = r.stackoverflow && r.stackoverflow.tagUrl ? esc(r.stackoverflow.tagUrl) : '#';
     var dtLink = r.devto && r.devto.tagUrl ? esc(r.devto.tagUrl) : '';
+    var hnLink = r.hn && r.hn.searchUrl && r.hn.source === "hn-algolia" ? esc(r.hn.searchUrl) : '';
 
     return '<section class="section"><aside class="nested source-notice" aria-label="Proveniência dos dados">' +
       '<div class="source-badges"><span class="mono" style="font-size:12px;color:var(--tertiary)">proveniência:</span>' + badges +
@@ -438,6 +506,7 @@
         (ghApiLink ? '<a class="btn-link" href="' + ghApiLink + '" target="_blank" rel="noopener noreferrer">GitHub REST ' + icon("arrowUpRight", "icon-sm") + '</a>' : '') +
         '<a class="btn-link" href="' + soLink + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px">' + soLogo(13) + ' ' + icon("arrowUpRight", "icon-sm") + '</a>' +
         (dtLink ? '<a class="btn-link" href="' + dtLink + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px">' + devLogo(13) + ' ' + icon("arrowUpRight", "icon-sm") + '</a>' : '') +
+        (hnLink ? '<a class="btn-link" href="' + hnLink + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px">' + hnLogo(13) + ' ' + icon("arrowUpRight", "icon-sm") + '</a>' : '') +
       '</div></aside></section>';
   }
 
@@ -453,6 +522,7 @@
       metrics(report) +
       questions(report) +
       devtoSection(report) +
+      hnSection(report) +
       sources(report);
     window.DEVTRENDS_TICKER.mount(container);
     window.DEVTRENDS_HIGHLIGHT.mount(container);

@@ -20,6 +20,7 @@
     stackexchangeApi: "https://api.stackexchange.com/2.3",
     stackOverflow: "https://stackoverflow.com",
     devTo: "https://dev.to",
+    hnAlgolia: "https://hn.algolia.com/api/v1",
     geminiApi: "https://generativelanguage.googleapis.com/v1beta",
     geminiModel: "gemini-3.5-flash-lite",
     /* Optional dependency-free scraper you run locally (tools/scraper.mjs). */

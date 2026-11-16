@@ -400,6 +400,108 @@
       });
   }
 
+  /* --- Hacker News: Algolia Search API (the HN search backend, CORS *) ---- */
+  /* Terms that are common English words would inflate title matching.       */
+  var HN_COMMON_WORDS = { "go": true, "r": true, "c": true, "ai": true };
+
+  function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+  function hnTerms(tech) {
+    var seen = {}, out = [];
+    [tech.name].concat(tech.aliases || []).forEach(function (t) {
+      var s = String(t).trim().toLowerCase();
+      if (!s || s.length < 2 || HN_COMMON_WORDS[s] || seen[s]) return;
+      seen[s] = true;
+      out.push(s);
+    });
+    return out.length ? out : [tech.name.toLowerCase()];
+  }
+
+  function hnTitleMatcher(tech) {
+    var re = new RegExp("(^|[^a-z0-9])(" + hnTerms(tech).map(escapeRegExp).join("|") + ")([^a-z0-9]|$)", "i");
+    return function (title) { return re.test(String(title || "")); };
+  }
+
+  function hnSearchStories(tech, numericFilter) {
+    var url = CFG.hnAlgolia + "/search_by_date?tags=story&hitsPerPage=1000&query=" +
+      encodeURIComponent(tech.name) +
+      (numericFilter ? "&numericFilters=" + encodeURIComponent(numericFilter) : "");
+    return cachedJson(url, { timeoutMs: CFG.timeoutMs + 3000 });
+  }
+
+  function hnFrontPage(tech) {
+    return cachedJson(CFG.hnAlgolia + "/search?tags=front_page&hitsPerPage=30", { timeoutMs: CFG.timeoutMs })
+      .then(function (data) {
+        var matches = hnTitleMatcher(tech);
+        var hits = (data && data.hits) || [];
+        return { posts: hits.length, matches: hits.filter(function (h) { return matches(h.title); }).length };
+      })
+      .catch(function (e) {
+        console.warn("[hn-front]", e && e.message);
+        return null;
+      });
+  }
+
+  function getHackerNews(tech) {
+    var term = tech.name;
+    var now = Math.floor(Date.now() / 1000);
+    var weekAgo = now - 7 * 86400, twoWeeksAgo = now - 14 * 86400;
+    var base = {
+      source: "hn-algolia",
+      query: term,
+      siteUrl: "https://news.ycombinator.com",
+      searchUrl: "https://hn.algolia.com/?q=" + encodeURIComponent(term),
+      titlesLast7d: 0, titlesPrev7d: 0, deltaPct: null, matchesLast7d: 0,
+      frontPage: null, recentPosts: []
+    };
+    return Promise.all([
+      hnSearchStories(tech, "created_at_i>" + weekAgo).catch(function (e) {
+        console.warn("[hn-week]", e.message); return null;
+      }),
+      hnSearchStories(tech, "created_at_i>" + twoWeeksAgo + ",created_at_i<" + weekAgo).catch(function (e) {
+        console.warn("[hn-prev]", e.message); return null;
+      }),
+      hnFrontPage(tech)
+    ]).then(function (res) {
+      var last = res[0], prev = res[1], fp = res[2];
+      if (!last && !prev) {
+        return Object.assign({}, base, {
+          source: "indisponivel",
+          note: "Hacker News indisponível no momento (API Algolia não respondeu)."
+        });
+      }
+      var matches = hnTitleMatcher(tech);
+      var lastHits = last && last.hits ? last.hits : [];
+      var prevHits = prev && prev.hits ? prev.hits : [];
+      var titlesLast = lastHits.filter(function (h) { return matches(h.title); }).length;
+      var titlesPrev = prevHits.filter(function (h) { return matches(h.title); }).length;
+      var deltaPct = null;
+      if (titlesPrev > 0) deltaPct = Math.round((titlesLast - titlesPrev) / titlesPrev * 100);
+      else if (titlesLast > 0) deltaPct = 100;
+      return Object.assign({}, base, {
+        titlesLast7d: titlesLast,
+        titlesPrev7d: titlesPrev,
+        deltaPct: deltaPct,
+        matchesLast7d: (last && last.nbHits) || 0,
+        frontPage: fp,
+        recentPosts: lastHits.filter(function (h) { return matches(h.title); }).slice(0, 8).map(function (h) {
+          return {
+            title: h.title || "",
+            url: h.url || ("https://news.ycombinator.com/item?id=" + h.objectID),
+            points: Number(h.points) || 0,
+            answers: Number(h.num_comments) || 0,
+            votes: Number(h.points) || 0,
+            views: null,
+            tags: [],
+            askedAt: h.created_at ? new Date(h.created_at).toISOString() : null,
+            unanswered: !(h.num_comments > 0)
+          };
+        }),
+        note: "Contagem de menções em TÍTULOS de posts (stories) na API pública de busca do Hacker News (Algolia); compara os últimos 7 dias com os 7 dias anteriores. Menções totais (título + texto + url): " + ((last && last.nbHits) || 0) + "."
+      });
+    });
+  }
+
   /* --- Timeline (computed from real totals, not drawn) ------------------- */
   function summarizeStars(github) {
     if (!github || !github.sampleSize || !github.starSample.length) {
@@ -600,8 +702,8 @@
     };
   }
 
-  /* --- Build prompt with GitHub + SO + DEV.TO data + user UI options --- */
-  function buildPrompt(tech, github, so, devto, timeline, options) {
+  /* --- Build prompt with GitHub + SO + DEV.TO + HN data + user UI options --- */
+  function buildPrompt(tech, github, so, devto, hn, timeline, options) {
     var s = summarizeStars(github);
     var gh = github ? [
       "Repositório: " + github.repo.fullName,
@@ -654,6 +756,27 @@
       dt.trending && dt.trending.tagInTrending ? "Publicações na home do dev.to com a tag: " + (dt.trending.tagOnHome ? "sim" : "não") : ""
     ].filter(Boolean).join("\n") : "";
 
+    /* --- HACKER NEWS: buzz via public Algolia Search API --- */
+    var hnBlock = "";
+    if (hn && hn.source === "hn-algolia") {
+      hnBlock = [
+        "== HACKER NEWS (API pública de busca, Algolia) ==",
+        "Termo buscado: \"" + hn.query + "\" em TÍTULOS de posts (stories)",
+        "Posts com a tecnologia no título, últimos 7 dias: " + hn.titlesLast7d,
+        "Posts com a tecnologia no título, 7 dias anteriores: " + hn.titlesPrev7d,
+        hn.deltaPct !== null ? "Variação semana a semana: " + (hn.deltaPct > 0 ? "+" : "") + hn.deltaPct + "%" : "",
+        "Menções totais (título + texto + url) na última semana: " + hn.matchesLast7d,
+        hn.frontPage && hn.frontPage.posts > 0
+          ? "Front page do news.ycombinator.com agora: " + hn.frontPage.posts + " posts no ar, " + hn.frontPage.matches + " mencionando a tecnologia."
+          : "",
+        hn.recentPosts && hn.recentPosts.length > 0
+          ? "Posts recentes no HN: " + hn.recentPosts.slice(0, 5).map(function (p) { return "\"" + p.title.slice(0, 70) + "\" (" + p.points + " pontos, " + p.answers + " comentários)"; }).join("; ")
+          : ""
+      ].filter(Boolean).join("\n");
+    } else if (hn) {
+      hnBlock = "== HACKER NEWS ==\nDados do Hacker News INDISPONÍVEIS (" + (hn.note || "API não respondeu") + ").";
+    }
+
     /* --- User-selected options from the web interface --- */
     var opts = options || {};
     var focusLabel = FOCUS_AREAS[opts.focus] || FOCUS_AREAS.geral;
@@ -673,16 +796,16 @@
 
     var compareBlock = compareTech ? "\n\n== TECNOLOGIA DE COMPARAÇÃO SOLICITADA ==\n" + compareTech.name + " (tag: " + compareTech.soTag + ", repo: " + (compareTech.repo || "n/a") + ")\nConsidere esta tecnologia como referência para a recomendação." : "";
 
-    return "Analise a tecnologia \"" + tech.name + "\".\n\n" + userBlock + "\n\n== GITHUB (API pública) ==\n" + gh + "\n\n== STACK OVERFLOW (API pública) ==\n" + soBlock + (devtoBlock ? "\n\n" + devtoBlock : "") + "\n\n== SÉRIE HISTÓRICA (último ponto real) ==\n" + series + compareBlock + "\n\nProduza o JSON completo do schema: indiceVitalidade, tendencia, previsao, resumo, justificativa numérica baseada nos dados, recomendação alinhada ao foco e perfil do usuário, confiança, tags, scoreBreakdown (notas por dimensão), comparativo (pontos fortes, pontos de atenção, alternativas) e projecao (horizonte, risco, momentum).";
+    return "Analise a tecnologia \"" + tech.name + "\".\n\n" + userBlock + "\n\n== GITHUB (API pública) ==\n" + gh + "\n\n== STACK OVERFLOW (API pública) ==\n" + soBlock + (devtoBlock ? "\n\n" + devtoBlock : "") + (hnBlock ? "\n\n" + hnBlock : "") + "\n\n== SÉRIE HISTÓRICA (último ponto real) ==\n" + series + compareBlock + "\n\nProduza o JSON completo do schema: indiceVitalidade, tendencia, previsao, resumo, justificativa numérica baseada nos dados, recomendação alinhada ao foco e perfil do usuário, confiança, tags, scoreBreakdown (notas por dimensão), comparativo (pontos fortes, pontos de atenção, alternativas) e projecao (horizonte, risco, momentum).";
   }
 
   /* --- Gemini call with key rotation --- */
-  function getGemini(tech, github, so, devto, timeline, options) {
+  function getGemini(tech, github, so, devto, hn, timeline, options) {
     if (!KEYS.count()) return Promise.resolve(heuristic(tech, github, so, options));
-    return callGeminiWithRotation(tech, github, so, devto, timeline, options, 0);
+    return callGeminiWithRotation(tech, github, so, devto, hn, timeline, options, 0);
   }
 
-  function callGeminiWithRotation(tech, github, so, devto, timeline, options, attempt) {
+  function callGeminiWithRotation(tech, github, so, devto, hn, timeline, options, attempt) {
     var maxAttempts = KEYS.count();
     if (attempt >= maxAttempts) {
       var fb = heuristic(tech, github, so, options);
@@ -704,7 +827,7 @@
       timeoutMs: 20000,
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents: [{ role: "user", parts: [{ text: buildPrompt(tech, github, so, devto, timeline, options) }] }],
+        contents: [{ role: "user", parts: [{ text: buildPrompt(tech, github, so, devto, hn, timeline, options) }] }],
         generationConfig: { temperature: 0.35, maxOutputTokens: 2000, responseMimeType: "application/json", responseSchema: SCHEMA }
       })
     }).then(function (data) {
@@ -762,7 +885,7 @@
       /* Rotate to next key and retry */
       if (attempt + 1 < maxAttempts) {
         KEYS.next();
-        return callGeminiWithRotation(tech, github, so, devto, timeline, options, attempt + 1);
+        return callGeminiWithRotation(tech, github, so, devto, hn, timeline, options, attempt + 1);
       }
       /* All keys exhausted — fall back to heuristic */
       var fb = heuristic(tech, github, so, options);
@@ -776,10 +899,10 @@
   function getInsights(input, options) {
     var tech = resolveTech(input);
     var opts = options || {};
-    return Promise.all([getGithub(tech), getStackOverflow(tech), getDevTo(tech)]).then(function (r) {
-      var github = r[0], so = r[1], devto = r[2];
+    return Promise.all([getGithub(tech), getStackOverflow(tech), getDevTo(tech), getHackerNews(tech)]).then(function (r) {
+      var github = r[0], so = r[1], devto = r[2], hn = r[3];
       var timeline = buildTimeline(github, so);
-      return getGemini(tech, github, so, devto, timeline, opts).then(function (ai) {
+      return getGemini(tech, github, so, devto, hn, timeline, opts).then(function (ai) {
         var warnings = [];
         if (!github) {
           var isRateLimit = lastGithubError && (lastGithubError.indexOf("403") !== -1 || lastGithubError.indexOf("rate limit") !== -1 || lastGithubError.indexOf("cota") !== -1);
@@ -791,6 +914,7 @@
         }
         if (github && github.note) warnings.push(github.note);
         if (so && so.note) warnings.push(so.note);
+        if (hn && hn.note && hn.source === "indisponivel") warnings.push(hn.note);
         if (so && so.source === "demo") warnings.push("Exibindo dados de demonstração para o Stack Overflow.");
         if (ai.source === "heuristica-local") {
           if (KEYS.count() > 0) {
@@ -802,7 +926,7 @@
         warnings.push("A série histórica é estimada; apenas o ponto atual e a amostragem de stargazers são reais.");
         if (KEYS.count() > 1) warnings.push("Rodízio de chaves Gemini ativo: " + KEYS.count() + " chaves configuradas.");
         return {
-          tech: tech, github: github, stackoverflow: so, devto: devto, ai: ai, timeline: timeline,
+          tech: tech, github: github, stackoverflow: so, devto: devto, hn: hn, ai: ai, timeline: timeline,
           generatedAt: new Date().toISOString(), warnings: warnings,
           githubError: lastGithubError,
           userOptions: opts,
@@ -810,6 +934,7 @@
             github: github ? github.source : "indisponivel",
             stackoverflow: so ? so.source : "indisponivel",
             devto: devto ? devto.source : "indisponivel",
+            hn: hn ? hn.source : "indisponivel",
             ai: ai.source
           }
         };
