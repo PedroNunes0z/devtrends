@@ -41,20 +41,32 @@
     <a href="../index.html#tecnologias">Tecnologias</a>
     <a class="nav-api" href="https://github.com/PedroNunes0z/devtrends" target="_blank" rel="noopener noreferrer">código-fonte <span data-icon="arrowUpRight" data-icon-class="icon-sm"></span></a>
   </nav>
-  <button id="config-toggle" class="config-btn" type="button" aria-label="Configurar chaves de API"></button>
+  <button id="config-toggle" class="config-btn" type="button" aria-label="Configurar chaves de API e opcoes de analise"></button>
   <a class="nav-cta" href="../index.html#analisar">Consultar</a>
 </div></header>
 <div class="wrap"><div id="config-panel" class="nested config-panel">
-  <label>Chave Gemini (Google AI Studio)<input type="password" name="geminiApiKey" placeholder="AIza…" autocomplete="off"><span class="hint">Opcional. Sem ela, a análise usa a heurística local.</span></label>
-  <label>GitHub token (aumenta a cota de 60 para 5.000 req/h)<input type="password" name="githubToken" placeholder="ghp_…" autocomplete="off"><span class="hint">Opcional, somente leitura de dados públicos.</span></label>
-  <label>Stack Exchange key<input type="password" name="stackexchangeKey" placeholder="opcional" autocomplete="off"><span class="hint">Opcional. Fica apenas neste navegador (localStorage), nunca no repositório.</span></label>
-  <button type="button" class="btn btn-primary" data-config-save style="height:38px">Salvar e recarregar</button>
+  <p class="config-section-title">Chaves Gemini (rodizio automatico)</p>
+  <div class="key-add-row">
+    <div class="key-input-group">
+      <label>Nova chave Gemini<input type="password" name="new-gemini-key" placeholder="AIza..." autocomplete="off"></label>
+    </div>
+    <div class="key-input-group" style="flex:none;width:160px">
+      <label>Rotulo (opcional)<input type="text" name="new-gemini-label" placeholder="Chave 1" autocomplete="off"></label>
+    </div>
+    <button type="button" class="key-add-btn" data-add-key>Adicionar</button>
+  </div>
+  <div id="gemini-keys-list"></div>
+  <div class="config-section">
+    <label>GitHub token (aumenta a cota de 60 para 5.000 req/h)<input type="password" name="githubToken" placeholder="ghp_..." autocomplete="off"><span class="hint">Opcional, somente leitura de dados publicos.</span></label>
+    <label>Stack Exchange key<input type="password" name="stackexchangeKey" placeholder="opcional" autocomplete="off"><span class="hint">Opcional. Fica apenas neste navegador (localStorage), nunca no repositorio.</span></label>
+    <button type="button" class="btn btn-primary" data-config-save style="height:38px">Salvar e recarregar</button>
+  </div>
 </div></div>
 <main id="conteudo"><div class="wrap">
-<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">início</a><span>/</span><span>insights</span><span>/</span><span style="color:var(--fg)">kubernetes</span></nav>
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">inicio</a><span>/</span><span>insights</span><span>/</span><span style="color:var(--fg)">kubernetes</span></nav>
 <div class="report-head">
-  <div><h1 class="h1 two-tone">Kubernetes: vitalidade e tendência. <span>Dados do GitHub, do Stack Overflow e uma leitura do Gemini.</span></h1></div>
-  <div><p class="prose">Relatório verificável: cada número abaixo vem de uma API pública ou de scraping, e a origem é exibida ao lado do valor.</p>
+  <div><h1 class="h1 two-tone">Kubernetes: vitalidade e tendencia. <span>Dados do GitHub, do Stack Overflow e uma leitura do Gemini.</span></h1></div>
+  <div><p class="prose">Relatorio verificavel: cada numero abaixo vem de uma API publica ou de scraping, e a origem e exibida ao lado do valor.</p>
     <div style="margin-top:20px"><div class="search" data-search-scope>
   <form class="search-row" data-search-form role="search">
     <label class="sr-only" for="tech-query">Nome da tecnologia</label>
@@ -65,6 +77,23 @@
     <button type="button" class="chip" data-tech="React">React</button><button type="button" class="chip" data-tech="Vue.js">Vue.js</button><button type="button" class="chip" data-tech="Rust">Rust</button><button type="button" class="chip" data-tech="TypeScript">TypeScript</button><button type="button" class="chip" data-tech="Bun">Bun</button><button type="button" class="chip" data-tech="Kubernetes">Kubernetes</button>
   </div>
 </div></div></div>
+</div>
+<div class="options-panel nested" style="margin-top:24px;padding:20px">
+  <p class="config-section-title" style="margin-bottom:14px">Opcoes de analise (enviadas ao Gemini)</p>
+  <div class="options-grid">
+    <div class="option-group">
+      <label for="analysis-focus">Foco</label>
+      <select id="analysis-focus" name="analysis-focus" data-option-control><option value="geral">Analise geral (todos os criterios)</option><option value="carreira">Foco em carreira: demanda de mercado e empregabilidade</option><option value="adocao">Foco em adocao em projetos: estabilidade e ecossistema</option><option value="aprendizado">Foco em curva de aprendizado e documentacao</option><option value="manutencao">Foco em manutencao: atividade, issues e suporte</option></select>
+    </div>
+    <div class="option-group">
+      <label for="analysis-depth">Profundidade</label>
+      <select id="analysis-depth" name="analysis-depth" data-option-control><option value="rapida">Analise rapida (resumo e indice)</option><option value="padrao">Analise padrao (todos os campos do schema)</option><option value="profunda">Analise profunda (justificativa detalhada e recomendacao especifica)</option></select>
+    </div>
+    <div class="option-group">
+      <label for="experience-level">Perfil</label>
+      <select id="experience-level" name="experience-level" data-option-control><option value="iniciante">Desenvolvedor iniciante</option><option value="intermediario">Desenvolvedor intermediario</option><option value="avancado">Desenvolvedor avancado / arquiteto</option></select>
+    </div>
+  </div>
 </div>
 <div id="report"></div>
 </div></main>

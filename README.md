@@ -49,11 +49,22 @@ Como o site é 100% estático, **não existem variáveis de ambiente de servidor
 
 Clique em **Config** na barra superior e preencha. Os valores ficam **somente no `localStorage` do seu navegador** e nunca são enviados ao repositório.
 
+#### Chaves Gemini com rodízio automático
+
+O painel Config permite adicionar **várias chaves Gemini**. Se uma chave atingir a cota, o app tenta a próxima automaticamente (round-robin). Para cada chave você vê:
+
+- rótulo personalizado;
+- indicador visual de chave ativa;
+- número de chamadas e erros;
+- botão para remover.
+
 | Campo | Obrigatório | Para que serve |
 | --- | --- | --- |
-| `geminiApiKey` | não | Chave do [Google AI Studio](https://aistudio.google.com/app/apikey). Sem ela, o relatório usa uma heurística local determinística, sinalizada na tela. |
-| `githubToken` | não | Token [GitHub](https://github.com/settings/tokens) somente-leitura. Eleva a cota de **60** para **5.000 req/h**. |
-| `stackexchangeKey` | não | Chave [Stack Apps](https://stackapps.com/apps/oauth/register). Eleva a cota de ~300 para ~10.000 req/dia. |
+| `Nova chave Gemini` | não | Chave do [Google AI Studio](https://aistudio.google.com/app/apikey). Adicione quantas quiser. |
+| `GitHub token` | não | Token [GitHub](https://github.com/settings/tokens) somente-leitura. Eleva a cota de **60** para **5.000 req/h**. |
+| `Stack Exchange key` | não | Chave [Stack Apps](https://stackapps.com/apps/oauth/register). Eleva a cota de ~300 para ~10.000 req/dia. |
+
+> Sem nenhuma chave Gemini o relatório usa uma **heurística local determinística**, sinalizada na interface.
 
 ### Forma alternativa — arquivo local
 
@@ -162,6 +173,15 @@ Outras decisões de interface:
 - **Sem emojis**: todas as setas/ícones são SVG inline em `assets/js/icons.js`.
 - **Hero**: título em cima, bloco de código em largura total abaixo.
 - **Pipeline**: os três contêineres (`01 · github.js`, `02 · stackoverflow.js`, `03 · gemini.js`) empilhados verticalmente, separados por hairlines.
+- **Opções de análise**: em cada relatório o usuário seleciona **foco** (geral/carreira/adoção/aprendizado/manutenção), **profundidade** (rápida/padrão/profunda) e **perfil** (iniciante/intermediário/avançado). Essas escolhas são incluídas no prompt enviado ao Gemini junto com os dados do GitHub e Stack Overflow.
+- **Saída do Gemini como interface**: em vez de texto puro, a resposta é renderizada em:
+  - **gauge** para o Índice de Vitalidade;
+  - **badge colorido** para a tendência;
+  - **tags de saúde** coloridas;
+  - **gráfico de barras** para a decomposição do índice (`scoreBreakdown`);
+  - **cards** para projeção (horizonte, risco, momentum);
+  - **tabela em duas colunas** para comparativo (pontos fortes, pontos de atenção, alternativas);
+  - **tabela** para as métricas brutas com barras proporcionais.
 - **Gráfico de linha do tempo**: SVG calculado a partir dos totais reais; 11 pontos estimados (tracejado) + ponto atual real (contínuo), com a proveniência escrita na legenda.
 - **Responsivo**: testado em 375, 640, 768, 1024, 1280 e 1536 px; tabelas e blocos de código rolam horizontalmente sem quebrar o layout.
 
@@ -180,8 +200,8 @@ assets/js/
   number-ticker.js          port vanilla do Magic UI Number Ticker
   highlight.js              tokenizador real + botão de copiar
   data.js                   GitHub / Stack Exchange / scraper / Gemini / heurística / timeline
-  widgets.js                cartão de tendência, gauge, tags, gráfico, tabela, proveniência
-  app.js                    bootstrap, navegação, painel Config
+  widgets.js                cartão de tendência, gauge, tags, gráfico de barras, projeção, comparativo, tabela, proveniência
+  app.js                    bootstrap, navegação, painel Config, rodízio de chaves, opções de análise
 assets/img/                 favicon.svg, og-default.png
 tools/
   generate-pages.mjs        gera HTMLs + sitemap (Node, sem dependências)
@@ -193,15 +213,16 @@ SKILL.md                    sistema de design de referência
 
 ---
 
-## 8. Honestidade dos dados
+## 8. Honestidade dos dados e uso do Gemini
 
 - Estrelas, forks, issues, watchers e datas: **GitHub REST API**.
 - Total de perguntas e total sem resposta: **Stack Exchange API** (ou HTML do scraper local).
 - Frequência de perguntas sem resposta: amostra das perguntas recentes (scraping ou API).
 - Histórico de 12 meses: **estimado** a partir dos totais reais de hoje, da idade do repositório e da velocidade real dos últimos stargazers. O gráfico diz isso explicitamente.
-- Sem `geminiApiKey`: nota, tendência e tags vêm de uma **heurística local**, identificada na interface.
+- Sem chaves Gemini: nota, tendência e tags vêm de uma **heurística local**, identificada na interface.
+- Com chaves Gemini: o prompt inclui obrigatoriamente os dados do **GitHub API**, dados do **Stack Overflow** e as **opções selecionadas pelo usuário** na interface (foco, profundidade, perfil, tecnologia de comparação). A resposta é **sempre estruturada (JSON)** e renderizada como widgets, nunca como texto puro.
 - Cada widget mostra a origem; falhas de cota/bloqueio viram avisos, não números inventados silenciosamente.
-- Se o GitHub não responder, estrelas/forks/atividade aparecem como **indisponível** (`—`), a série de estrelas é omitida do gráfico, a confiança cai e a tag `#DadosDoGitHubAusentes` sinaliza a lacuna. Nada é preenchido com `0` ou com uma Data inventada.
+- Se o GitHub não responder, estrelas/forks/atividade aparecem como **indisponível** (`—`), a série de estrelas é omitida do gráfico, a confiança cai e a tag `#DadosDoGitHubAusentes` sinaliza a lacuna. Nada é preenchido com `0` ou com uma data inventada.
 
 ---
 

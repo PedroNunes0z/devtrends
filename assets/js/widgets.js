@@ -1,6 +1,16 @@
 /* =========================================================================
    widgets.js — report rendering. Every displayed number goes through the
    vanilla Magic UI Number Ticker. Icons instead of emojis.
+
+   Gemini output is rendered as rich interface elements — never plain text:
+   · Índice de Vitalidade  → animated gauge
+   · Tendência              → colored badge with arrow icon
+   · Score breakdown        → horizontal bar chart with proportional bars
+   · Tags de saúde          → colored pill badges with tone indicators
+   · Comparativo            → structured two-column table (fortes vs atenção)
+   · Projeção               → risk/momentum indicator with horizon
+   · Confiança              → progress bar with percentage
+   · Recomendação           → highlighted callout with left border accent
    ========================================================================= */
 (function () {
   "use strict";
@@ -32,6 +42,18 @@
     em_alta: { icon: "arrowUp", cls: "up", label: "Em ascensão" },
     estavel: { icon: "arrowRight", cls: "flat", label: "Estável" },
     em_queda: { icon: "arrowDown", cls: "down", label: "Em retração" }
+  };
+
+  var RISK = {
+    baixo: { cls: "risk-low", label: "Baixo", color: "#C3E88D" },
+    medio: { cls: "risk-medium", label: "Médio", color: "#FFCB6B" },
+    alto: { cls: "risk-high", label: "Alto", color: "#F07178" }
+  };
+
+  var MOMENTUM = {
+    positivo: { icon: "arrowUp", cls: "mom-pos", label: "Positivo", color: "#C3E88D" },
+    neutro: { icon: "arrowRight", cls: "mom-neu", label: "Neutro", color: "#82AAFF" },
+    negativo: { icon: "arrowDown", cls: "mom-neg", label: "Negativo", color: "#F07178" }
   };
 
   /* --- Gauge -------------------------------------------------------------- */
@@ -88,6 +110,100 @@
       '</div></div>';
   }
 
+  /* --- Score breakdown bar chart (NEW — rich UI for Gemini structured output) --- */
+  function scoreBreakdown(r) {
+    var bd = r.ai.scoreBreakdown;
+    if (!bd) return "";
+    var dims = [
+      { key: "popularidade", label: "Popularidade", icon: "star", weight: "25%" },
+      { key: "atividade", label: "Atividade", icon: "refresh", weight: "20%" },
+      { key: "suporte", label: "Suporte", icon: "question", weight: "20%" },
+      { key: "comunidade", label: "Comunidade", icon: "fork", weight: "15%" },
+      { key: "adocao", label: "Adoção", icon: "fork", weight: "10%" },
+      { key: "manutencao", label: "Manutenção", icon: "issue", weight: "10%" }
+    ];
+    var bars = dims.map(function (d) {
+      var val = bd[d.key] !== undefined ? bd[d.key] : 0;
+      var color = val >= 70 ? "#C3E88D" : val >= 40 ? "#FFCB6B" : "#F07178";
+      return '<div class="breakdown-row">' +
+        '<div class="breakdown-label"><span class="breakdown-icon">' + icon(d.icon, "icon-sm") + '</span>' +
+          '<span>' + d.label + '</span><span class="breakdown-weight">' + d.weight + '</span></div>' +
+        '<div class="breakdown-bar-wrap">' +
+          '<div class="breakdown-bar" style="width:' + val + '%;background:' + color + '"></div>' +
+        '</div>' +
+        '<div class="breakdown-value">' + ticker(val) + '<span class="breakdown-unit">/100</span></div>' +
+      '</div>';
+    }).join("");
+    return '<section class="section" aria-labelledby="breakdown-h">' +
+      '<div class="section-head"><h2 class="h2 headline two-tone" id="breakdown-h">Decomposição do índice. <span>Cada dimensão com peso e cor.</span></h2>' +
+      '<div class="detail"><p>O Índice de Vitalidade é uma média ponderada de seis dimensões. As barras mostram a nota de cada uma, com cor indicando faixa: verde (70+), amarelo (40-69), vermelho (<40).</p><p class="index">2.1 Decomposição →</p></div></div>' +
+      '<div class="breakdown-chart panel" style="margin-top:28px;padding:24px">' + bars + '</div>' +
+    '</section>';
+  }
+
+  /* --- Projection indicator (NEW — risk, momentum, horizon) --- */
+  function projection(r) {
+    var proj = r.ai.projecao;
+    if (!proj) return "";
+    var risk = RISK[proj.risco] || RISK.medio;
+    var mom = MOMENTUM[proj.momentum] || MOMENTUM.neutro;
+    return '<section class="section" aria-labelledby="proj-h">' +
+      '<div class="section-head"><h2 class="h2 headline two-tone" id="proj-h">Projeção. <span>Risco, momentum e horizonte.</span></h2>' +
+      '<div class="detail"><p>Avaliação direcional baseada nos dados de atividade e crescimento.</p><p class="index">2.2 Projeção →</p></div></div>' +
+      '<div class="proj-grid" style="margin-top:28px">' +
+        '<div class="proj-card panel">' +
+          '<div class="proj-card-label">Horizonte</div>' +
+          '<div class="proj-card-value">' + esc(proj.horizonte) + '</div>' +
+        '</div>' +
+        '<div class="proj-card panel">' +
+          '<div class="proj-card-label">Risco</div>' +
+          '<div class="proj-card-value ' + risk.cls + '">' +
+            '<span class="risk-dot" style="background:' + risk.color + '"></span>' + risk.label +
+          '</div>' +
+        '</div>' +
+        '<div class="proj-card panel">' +
+          '<div class="proj-card-label">Momentum</div>' +
+          '<div class="proj-card-value ' + mom.cls + '">' +
+            icon(mom.icon, "icon-sm") + mom.label +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</section>';
+  }
+
+  /* --- Comparativo table (NEW — structured two-column layout) --- */
+  function comparativo(r) {
+    var comp = r.ai.comparativo;
+    if (!comp) return "";
+    var fortEl = (comp.pontosFortes || []).map(function (s) {
+      return '<li class="comp-item pos">' + icon("arrowUp", "icon-sm") + '<span>' + esc(s) + '</span></li>';
+    }).join("");
+    var atenEl = (comp.pontosAtencao || []).map(function (s) {
+      return '<li class="comp-item warn">' + icon("arrowDown", "icon-sm") + '<span>' + esc(s) + '</span></li>';
+    }).join("");
+    var altEl = (comp.alternativas || []).map(function (s) {
+      var altTech = D.resolveTech(s);
+      var href = altTech.slug ? (document.body.getAttribute("data-home") || ".") + "/reports/" + altTech.slug + ".html" : "#";
+      return '<a class="alt-chip" href="' + href + '">' + icon("arrowRight", "icon-sm") + esc(s) + '</a>';
+    }).join("");
+
+    return '<section class="section" aria-labelledby="comp-h">' +
+      '<div class="section-head"><h2 class="h2 headline two-tone" id="comp-h">Comparativo. <span>Pontos fortes, pontos de atenção e alternativas.</span></h2>' +
+      '<div class="detail"><p>Análise estruturada gerada pelo Gemini a partir das métricas coletadas.</p><p class="index">2.3 Comparativo →</p></div></div>' +
+      '<div class="comp-grid" style="margin-top:28px">' +
+        '<div class="panel comp-col">' +
+          '<h3 class="comp-title pos">' + icon("arrowUp", "icon-sm") + ' Pontos fortes</h3>' +
+          '<ul class="comp-list">' + (fortEl || '<li class="comp-item empty">—</li>') + '</ul>' +
+        '</div>' +
+        '<div class="panel comp-col">' +
+          '<h3 class="comp-title warn">' + icon("arrowDown", "icon-sm") + ' Pontos de atenção</h3>' +
+          '<ul class="comp-list">' + (atenEl || '<li class="comp-item empty">—</li>') + '</ul>' +
+        '</div>' +
+      '</div>' +
+      (altEl ? '<div class="alt-section" style="margin-top:16px"><span class="mono" style="font-size:12px;color:var(--tertiary)">alternativas sugeridas:</span><div class="alt-chips" style="margin-top:8px">' + altEl + '</div></div>' : '') +
+    '</section>';
+  }
+
   /* --- Health tags + analysis -------------------------------------------- */
   function analysis(r) {
     var tags = r.ai.tags.map(function (tag) {
@@ -103,6 +219,7 @@
           '<div class="kv-row"><dt>Modelo</dt><dd>' + esc(r.ai.source === "gemini" ? r.ai.model : "heurística local") + '</dd></div>' +
           '<div class="kv-row"><dt>Tendência</dt><dd>' + esc(r.ai.tendencia) + '</dd></div>' +
           '<div class="kv-row"><dt>Confiança</dt><dd>' + ticker(Math.round(r.ai.confianca * 100), 'data-suffix="%"') + '</dd></div>' +
+          (r.ai.keyUsed ? '<div class="kv-row"><dt>Chave Gemini</dt><dd>' + esc(r.ai.keyUsed) + '</dd></div>' : "") +
         '</dl>' +
       '</div>' +
       '<div class="split-cell">' +
@@ -247,6 +364,9 @@
   function render(container, report) {
     container.innerHTML =
       trendCard(report) +
+      scoreBreakdown(report) +
+      projection(report) +
+      comparativo(report) +
       analysis(report) +
       timeline(report) +
       metrics(report) +

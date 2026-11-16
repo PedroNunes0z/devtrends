@@ -5,15 +5,25 @@
      · GitHub REST API            (CORS enabled; optional token)
      · tools/scraper.mjs          (optional local scraping API, only on localhost)
      · Stack Exchange API v2.3    (CORS enabled; fallback for SO totals/sample)
-     · Google Gemini              (structured output; key entered in the UI)
+     · Google Gemini              (structured output; key rotation supported)
 
    Every layer degrades explicitly: the report always shows where each number
    came from and flags estimates. Nothing is silently invented.
+
+   --- Gemini prompt ---
+   The prompt MUST include data from the GitHub API, the scraping/Stack Exchange
+   API, AND user-selected actions/options from the web interface (analysis depth,
+   focus area, comparison target, experience level).
+
+   --- Key rotation ---
+   Multiple Gemini keys are tried round-robin. On failure (quota, rate-limit,
+   network), the next key is tried automatically.
    ========================================================================= */
 (function () {
   "use strict";
 
   var CFG = window.DEVTRENDS.config;
+  var KEYS = window.DEVTRENDS.keys;
 
   /* --- Catalogue --------------------------------------------------------- */
   var CATALOG = [
@@ -47,6 +57,27 @@
   ];
 
   var POPULAR = ["react", "vue-js", "next-js", "typescript", "python", "rust", "go", "svelte", "angular", "node-js", "tailwind-css", "astro", "bun", "kubernetes", "pytorch"];
+
+  /* --- User options (selected in the UI, sent to Gemini) --- */
+  var FOCUS_AREAS = {
+    "geral": "Análise geral (todos os critérios)",
+    "carreira": "Foco em carreira: demanda de mercado e empregabilidade",
+    "adocao": "Foco em adoção em projetos: estabilidade e ecossistema",
+    "aprendizado": "Foco em curva de aprendizado e documentação",
+    "manutencao": "Foco em manutenção: atividade, issues e suporte"
+  };
+
+  var DEPTHS = {
+    "rapida": "Análise rápida (resumo e índice)",
+    "padrao": "Análise padrão (todos os campos do schema)",
+    "profunda": "Análise profunda (justificativa detalhada e recomendação específica)"
+  };
+
+  var EXPERIENCE_LEVELS = {
+    "iniciante": "Desenvolvedor iniciante",
+    "intermediario": "Desenvolvedor intermediário",
+    "avancado": "Desenvolvedor avançado / arquiteto"
+  };
 
   function slugify(input) {
     return String(input || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -132,7 +163,6 @@
   /* --- GitHub ------------------------------------------------------------ */
   function ghHeaders(accept) {
     var h = { Accept: accept || "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
-    /* Browser fetch forbids User-Agent; the token is the only auth header. */
     if (CFG.githubToken) h.Authorization = "Bearer " + CFG.githubToken;
     return h;
   }
@@ -365,30 +395,67 @@
       justificativa: { type: "STRING" },
       recomendacao: { type: "STRING" },
       confianca: { type: "NUMBER" },
-      tags: { type: "ARRAY", items: { type: "OBJECT", properties: { label: { type: "STRING" }, tone: { type: "STRING", enum: ["positivo", "atencao", "neutro"] } }, required: ["label", "tone"] } }
+      tags: { type: "ARRAY", items: { type: "OBJECT", properties: { label: { type: "STRING" }, tone: { type: "STRING", enum: ["positivo", "atencao", "neutro"] } }, required: ["label", "tone"] } },
+      /* New structured fields for rich UI rendering */
+      scoreBreakdown: {
+        type: "OBJECT",
+        properties: {
+          popularidade: { type: "INTEGER" },
+          atividade: { type: "INTEGER" },
+          manutencao: { type: "INTEGER" },
+          comunidade: { type: "INTEGER" },
+          suporte: { type: "INTEGER" },
+          adocao: { type: "INTEGER" }
+        }
+      },
+      comparativo: {
+        type: "OBJECT",
+        properties: {
+          pontosFortes: { type: "ARRAY", items: { type: "STRING" } },
+          pontosAtencao: { type: "ARRAY", items: { type: "STRING" } },
+          alternativas: { type: "ARRAY", items: { type: "STRING" } }
+        }
+      },
+      projecao: {
+        type: "OBJECT",
+        properties: {
+          horizonte: { type: "STRING" },
+          risco: { type: "STRING", enum: ["baixo", "medio", "alto"] },
+          momentum: { type: "STRING", enum: ["positivo", "neutro", "negativo"] }
+        }
+      }
     },
-    required: ["indiceVitalidade", "tendencia", "previsao", "resumo", "justificativa", "recomendacao", "confianca", "tags"]
+    required: ["indiceVitalidade", "tendencia", "previsao", "resumo", "justificativa", "recomendacao", "confianca", "tags", "scoreBreakdown", "comparativo", "projecao"]
   };
 
-  var SYSTEM = "Você é um analista de engenharia de software. Recebe métricas REAIS do GitHub e do Stack Overflow e produz um Índice de Vitalidade (0-100) para ajudar a decidir o que estudar ou qual stack adotar. Regras: escreva em português do Brasil, tom técnico e direto, sem marketing; baseie cada afirmação nos números; se um dado faltar, reduza a confiança e diga isso; não invente números ou datas; popularidade não é saúde (atividade, volume de dúvidas e taxa de resolução pesam mais); use escala logarítmica; 'previsao' deve ser um rótulo curto; 'tags' de 4 a 6 itens curtos, sem espaços, misturando pontos fortes e de atenção. Responda SOMENTE com o JSON do schema.";
+  var SYSTEM = "Você é um analista de engenharia de software. Recebe métricas REAIS do GitHub e do Stack Overflow, além de opções selecionadas pelo usuário na interface, e produz um Índice de Vitalidade (0-100) para ajudar a decidir o que estudar ou qual stack adotar. Regras: escreva em português do Brasil, tom técnico e direto, sem marketing; baseie cada afirmação nos números; se um dado faltar, reduza a confiança e diga isso; não invente números ou datas; popularidade não é saúde (atividade, volume de dúvidas e taxa de resolução pesam mais); use escala logarítmica; 'previsao' deve ser um rótulo curto; 'tags' de 4 a 6 itens curtos, sem espaços, misturando pontos fortes e de atenção. Em 'scoreBreakdown', dê notas de 0 a 100 para cada dimensão. Em 'comparativo', liste 2-3 pontos fortes, 2-3 pontos de atenção e 1-2 tecnologias alternativas. Em 'projecao', indique horizonte (ex: '6 meses'), risco e momentum. Responda SOMENTE com o JSON do schema.";
 
-  function heuristic(tech, github, so) {
+  function heuristic(tech, github, so, options) {
     var stars = github ? github.repo.stars : 0;
     var forks = github ? github.repo.forks : 0;
     var issues = github ? github.repo.openIssues : 0;
-    /* No GitHub response means "unknown", never "0 stars / 365 days". */
     var days = github ? github.daysSincePush : null;
     var totalQ = so ? so.totalQuestions : 0;
     var unanswered = so ? so.unansweredRate : 0.5;
     var sample = summarizeStars(github);
     function log(v, ceiling) { return clamp(Math.log10(Math.max(v, 1)) / Math.log10(ceiling) * 100, 0, 100); }
+
+    var breakdown = {
+      popularidade: Math.round(log(stars, 250000)),
+      adocao: Math.round(log(forks, 60000)),
+      atividade: github ? Math.round(clamp(100 - days / 180 * 100, 0, 100)) : 0,
+      manutencao: github ? Math.round(clamp(100 - issues / Math.max(stars, 1) * 600, 0, 100)) : 0,
+      comunidade: Math.round(log(totalQ, 2000000)),
+      suporte: Math.round(clamp(100 - unanswered * 180, 0, 100))
+    };
+
     var parts = {
-      popularidade: log(stars, 250000) * 0.25,
-      adocao: log(forks, 60000) * 0.1,
-      atividade: github ? clamp(100 - days / 180 * 100, 0, 100) * 0.2 : 0,
-      manutencao: github ? clamp(100 - issues / Math.max(stars, 1) * 600, 0, 100) * 0.1 : 0,
-      comunidade: log(totalQ, 2000000) * 0.15,
-      suporte: clamp(100 - unanswered * 180, 0, 100) * 0.2
+      popularidade: breakdown.popularidade * 0.25,
+      adocao: breakdown.adocao * 0.1,
+      atividade: breakdown.atividade * 0.2,
+      manutencao: breakdown.manutencao * 0.1,
+      comunidade: breakdown.comunidade * 0.15,
+      suporte: breakdown.suporte * 0.2
     };
     var score = Math.round(clamp(Object.keys(parts).reduce(function (a, k) { return a + parts[k]; }, 0), 0, 100));
     var velocity = sample.monthlyVelocity || 0;
@@ -396,6 +463,25 @@
     var declining = github && (days > 365 || github.repo.archived);
     var trend = declining ? "em_queda" : growing ? "em_alta" : "estavel";
     var previsao = declining ? "Em retração: manutenção irregular" : growing ? "Tecnologia em ascensão" : score > 72 ? "Madura e estável" : "Adoção moderada";
+
+    /* Build comparativo */
+    var pontosFortes = [], pontosAtencao = [];
+    if (so && totalQ > 100000) pontosFortes.push("Comunidade ativa com grande volume de perguntas");
+    if (github && stars > 40000) pontosFortes.push("Ecossistema maduro e amplamente adotado");
+    if (github && days < 30) pontosFortes.push("Manutenção recente e contínua");
+    if (so && unanswered < 0.3) pontosFortes.push("Boa taxa de resolução de dúvidas");
+    if (so && unanswered > 0.38) pontosAtencao.push("Taxa elevada de perguntas sem resposta");
+    if (github && days > 180) pontosAtencao.push("Atividade de manutenção irregular");
+    if (github && issues > stars * 0.05) pontosAtencao.push("Backlog de issues proporcionalmente alto");
+    if (!github) pontosAtencao.push("Dados do GitHub indisponíveis para análise");
+    if (!so) pontosAtencao.push("Dados do Stack Overflow indisponíveis para análise");
+    if (!pontosFortes.length) pontosFortes.push("Dados insuficientes para avaliar pontos fortes");
+
+    /* Alternativas based on catalog */
+    var alternativas = [];
+    var sameCategory = CATALOG.filter(function (t) { return t.slug !== tech.slug; }).slice(0, 2);
+    alternativas = sameCategory.map(function (t) { return t.name; }).slice(0, 2);
+
     var tags = [];
     if (so && totalQ > 100000) tags.push({ label: "ComunidadeAtiva", tone: "positivo" });
     if (github && stars > 40000) tags.push({ label: "EcossistemaMaduro", tone: "positivo" });
@@ -408,7 +494,6 @@
     if (!so) tags.push({ label: "DadosDoStackOverflowAusentes", tone: "atencao" });
     if (!tags.length) tags.push({ label: "DadosParciais", tone: "neutro" });
 
-    /* The summary states only measurements that actually came back. */
     var facts = [];
     if (so) facts.push(formatNumber(totalQ) + " perguntas no Stack Overflow, " + Math.round(unanswered * 100) + "% sem resposta");
     if (github) facts.push(formatNumber(stars) + " estrelas no GitHub e último push há " + days + " dia(s)");
@@ -416,54 +501,123 @@
       + (github ? "" : " Os dados do GitHub não foram obtidos (cota ou rede); estrelas, forks e atividade ficaram de fora desta leitura.")
       + (so ? "" : " O volume de perguntas do Stack Overflow não foi obtido.");
 
+    var expLabel = options && options.experience ? EXPERIENCE_LEVELS[options.experience] : "Desenvolvedor intermediário";
+    var focusLabel = options && options.focus ? FOCUS_AREAS[options.focus] : FOCUS_AREAS.geral;
+    var depthLabel = options && options.depth ? DEPTHS[options.depth] : DEPTHS.padrao;
+
     return {
       source: "heuristica-local", model: null,
       indiceVitalidade: score, tendencia: trend, previsao: previsao,
       resumo: resumo,
       justificativa: "Nota heurística: popularidade " + parts.popularidade.toFixed(0) + "/25, adoção " + parts.adocao.toFixed(0) + "/10, atividade " + parts.atividade.toFixed(0) + "/20, manutenção " + parts.manutencao.toFixed(0) + "/10, comunidade " + parts.comunidade.toFixed(0) + "/15 e suporte " + parts.suporte.toFixed(0) + "/20."
-        + (github ? "" : " Sem resposta do GitHub, quatro dimensões não puderam ser medidas: o índice reflete apenas comunidade e suporte."),
+        + (github ? "" : " Sem resposta do GitHub, quatro dimensões não puderam ser medidas: o índice reflete apenas comunidade e suporte.")
+        + " Opções do usuário: " + focusLabel + ", " + depthLabel + ", " + expLabel + ".",
       recomendacao: score >= 70 ? "Boa aposta para estudar ou adotar, desde que o ecossistema resolva o seu caso de uso." : "Compare com alternativas do catálogo antes de decidir; os dados sugerem adoção mais cautelosa.",
       confianca: clamp(0.15 + (github ? 0.4 : 0) + (so && so.source !== "demo" ? 0.35 : 0) + (github && so && so.source !== "demo" ? 0.1 : 0), 0.15, 0.9),
-      tags: tags.slice(0, 6)
+      tags: tags.slice(0, 6),
+      scoreBreakdown: breakdown,
+      comparativo: {
+        pontosFortes: pontosFortes.slice(0, 3),
+        pontosAtencao: pontosAtencao.slice(0, 3),
+        alternativas: alternativas
+      },
+      projecao: {
+        horizonte: "6 meses",
+        risco: declining ? "alto" : growing ? "baixo" : "medio",
+        momentum: growing ? "positivo" : declining ? "negativo" : "neutro"
+      },
+      userOptions: { focus: options && options.focus || "geral", depth: options && options.depth || "padrao", experience: options && options.experience || "intermediario" }
     };
   }
 
-  function buildPrompt(tech, github, so, timeline) {
+  /* --- Build prompt with GitHub data + SO data + user UI options --- */
+  function buildPrompt(tech, github, so, timeline, options) {
     var s = summarizeStars(github);
     var gh = github ? [
       "Repositório: " + github.repo.fullName,
       "Estrelas: " + github.repo.stars,
       "Forks: " + github.repo.forks,
       "Issues abertas (inclui PRs): " + github.repo.openIssues,
+      "Watchers: " + github.repo.watchers,
+      "Linguagem: " + (github.repo.language || "n/a"),
+      "Licença: " + (github.repo.license || "n/a"),
+      "Tópicos: " + (github.repo.topics.length ? github.repo.topics.join(", ") : "n/a"),
       "Último push: " + github.repo.pushedAt.slice(0, 10) + " (há " + github.daysSincePush + " dias)",
       "Criado em: " + github.repo.createdAt.slice(0, 10),
       "Arquivado: " + (github.repo.archived ? "sim" : "não"),
-      "Amostragem real de stargazers: " + s.size + " estrelas em " + s.days + " dia(s)"
-    ].join("\n") : "Dados do GitHub INDISPONÍVEIS.";
+      "Amostragem real de stargazers: " + s.size + " estrelas em " + s.days + " dia(s)",
+      s.size > 0 ? "Velocidade mensal estimada: " + Math.round(s.monthlyVelocity) + " estrelas/mês" : ""
+    ].filter(Boolean).join("\n") : "Dados do GitHub INDISPONÍVEIS (cota excedida ou rede).";
+
     var soBlock = so ? [
-      "Tag: " + so.tag,
-      "Total de perguntas: " + so.totalQuestions + " (origem: " + so.source + ")",
+      "Tag analisada: " + so.tag,
+      "Origem dos dados: " + so.source,
+      "Total de perguntas na tag: " + so.totalQuestions,
       "Total sem resposta: " + so.totalUnanswered,
       "Taxa geral sem resposta: " + (so.unansweredRate * 100).toFixed(1) + "%",
-      "Amostra recente: " + so.sampleSize + " perguntas; sem resposta: " + (so.sampleUnansweredRate * 100).toFixed(1) + "%",
-      "Avisos: " + (so.note || "nenhum")
-    ].join("\n") : "Dados do Stack Overflow INDISPONÍVEIS.";
+      "Amostra recente: " + so.sampleSize + " perguntas",
+      "Taxa sem resposta na amostra: " + (so.sampleUnansweredRate * 100).toFixed(1) + "%",
+      so.recentQuestions && so.recentQuestions.length > 0
+        ? "Títulos recentes: " + so.recentQuestions.slice(0, 5).map(function (q) { return "\"" + q.title.slice(0, 80) + "\""; }).join("; ")
+        : "",
+      "Avisos de coleta: " + (so.note || "nenhum")
+    ].filter(Boolean).join("\n") : "Dados do Stack Overflow INDISPONÍVEIS.";
+
     var series = timeline.filter(function (_, i) { return i % 3 === 0 || i === 11; })
       .map(function (p) { return p.month + ": " + p.stars + " estrelas / " + p.questions + " perguntas" + (p.estimated ? " (estimado)" : " (real)"); }).join("\n");
-    return "Analise a tecnologia \"" + tech.name + "\".\n\n== GITHUB ==\n" + gh + "\n\n== STACK OVERFLOW ==\n" + soBlock + "\n\n== SÉRIE (último ponto real) ==\n" + series + "\n\nProduza índice, tendência, previsão, resumo, justificativa numérica, recomendação, confiança e tags.";
+
+    /* --- User-selected options from the web interface --- */
+    var opts = options || {};
+    var focusLabel = FOCUS_AREAS[opts.focus] || FOCUS_AREAS.geral;
+    var depthLabel = DEPTHS[opts.depth] || DEPTHS.padrao;
+    var expLabel = EXPERIENCE_LEVELS[opts.experience] || EXPERIENCE_LEVELS.intermediario;
+    var compareTech = opts.compareWith ? resolveTech(opts.compareWith) : null;
+
+    var userBlock = [
+      "== OPÇÕES SELECIONADAS PELO USUÁRIO NA INTERFACE ==",
+      "Foco da análise: " + focusLabel,
+      "Profundidade: " + depthLabel,
+      "Perfil do usuário: " + expLabel,
+      compareTech ? "Tecnologia para comparação: " + compareTech.name + (compareTech.repo ? " (" + compareTech.repo + ")" : "") : "Sem tecnologia de comparação solicitada",
+      opts.considerCareer ? "Considerar perspectiva de carreira/empregabilidade: sim" : "",
+      opts.timeHorizon ? "Horizonte temporal de interesse: " + opts.timeHorizon : ""
+    ].filter(Boolean).join("\n");
+
+    var compareBlock = compareTech ? "\n\n== TECNOLOGIA DE COMPARAÇÃO SOLICITADA ==\n" + compareTech.name + " (tag: " + compareTech.soTag + ", repo: " + (compareTech.repo || "n/a") + ")\nConsidere esta tecnologia como referência para a recomendação." : "";
+
+    return "Analise a tecnologia \"" + tech.name + "\".\n\n" + userBlock + "\n\n== GITHUB (API pública) ==\n" + gh + "\n\n== STACK OVERFLOW (API própria / scraping) ==\n" + soBlock + "\n\n== SÉRIE HISTÓRICA (último ponto real) ==\n" + series + compareBlock + "\n\nProduza o JSON completo do schema: indiceVitalidade, tendencia, previsao, resumo, justificativa numérica baseada nos dados, recomendação alinhada ao foco e perfil do usuário, confiança, tags, scoreBreakdown (notas por dimensão), comparativo (pontos fortes, pontos de atenção, alternativas) e projecao (horizonte, risco, momentum).";
   }
 
-  function getGemini(tech, github, so, timeline) {
-    if (!CFG.geminiApiKey) return Promise.resolve(heuristic(tech, github, so));
-    var url = CFG.geminiApi + "/models/" + encodeURIComponent(CFG.geminiModel) + ":generateContent?key=" + encodeURIComponent(CFG.geminiApiKey);
+  /* --- Gemini call with key rotation --- */
+  function getGemini(tech, github, so, timeline, options) {
+    if (!KEYS.count()) return Promise.resolve(heuristic(tech, github, so, options));
+    return callGeminiWithRotation(tech, github, so, timeline, options, 0);
+  }
+
+  function callGeminiWithRotation(tech, github, so, timeline, options, attempt) {
+    var maxAttempts = KEYS.count();
+    if (attempt >= maxAttempts) {
+      var fb = heuristic(tech, github, so, options);
+      fb.previsao += " (Gemini indisponível)";
+      return Promise.resolve(fb);
+    }
+
+    var apiKey = KEYS.active();
+    if (!apiKey) {
+      var fb0 = heuristic(tech, github, so, options);
+      fb0.previsao += " (Gemini indisponível)";
+      return Promise.resolve(fb0);
+    }
+
+    var url = CFG.geminiApi + "/models/" + encodeURIComponent(CFG.geminiModel) + ":generateContent?key=" + encodeURIComponent(apiKey);
     return request(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       timeoutMs: 20000,
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents: [{ role: "user", parts: [{ text: buildPrompt(tech, github, so, timeline) }] }],
-        generationConfig: { temperature: 0.35, maxOutputTokens: 1400, responseMimeType: "application/json", responseSchema: SCHEMA }
+        contents: [{ role: "user", parts: [{ text: buildPrompt(tech, github, so, timeline, options) }] }],
+        generationConfig: { temperature: 0.35, maxOutputTokens: 2000, responseMimeType: "application/json", responseSchema: SCHEMA }
       })
     }).then(function (data) {
       if (data.error && data.error.message) throw new Error(data.error.message);
@@ -471,9 +625,17 @@
       var raw = text && text.parts ? text.parts.map(function (p) { return p.text || ""; }).join("") : "";
       if (!raw) throw new Error("resposta vazia");
       var p = JSON.parse(raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
+
+      KEYS.recordCall(apiKey, true);
+
       var tags = (p.tags || []).map(function (t) {
         return { label: String(t.label || "").replace(/^#/, "").slice(0, 40), tone: t.tone === "positivo" || t.tone === "atencao" ? t.tone : "neutro" };
       }).filter(function (t) { return t.label; }).slice(0, 6);
+
+      var bd = p.scoreBreakdown || {};
+      var comp = p.comparativo || {};
+      var proj = p.projecao || {};
+
       return {
         source: "gemini", model: CFG.geminiModel,
         indiceVitalidade: Math.round(clamp(Number(p.indiceVitalidade) || 0, 0, 100)),
@@ -483,23 +645,52 @@
         justificativa: String(p.justificativa || "").slice(0, 700),
         recomendacao: String(p.recomendacao || "").slice(0, 400),
         confianca: clamp(Number(p.confianca) || 0.5, 0, 1),
-        tags: tags
+        tags: tags,
+        scoreBreakdown: {
+          popularidade: Math.round(clamp(Number(bd.popularidade) || 0, 0, 100)),
+          adocao: Math.round(clamp(Number(bd.adocao) || 0, 0, 100)),
+          atividade: Math.round(clamp(Number(bd.atividade) || 0, 0, 100)),
+          manutencao: Math.round(clamp(Number(bd.manutencao) || 0, 0, 100)),
+          comunidade: Math.round(clamp(Number(bd.comunidade) || 0, 0, 100)),
+          suporte: Math.round(clamp(Number(bd.suporte) || 0, 0, 100))
+        },
+        comparativo: {
+          pontosFortes: (comp.pontosFortes || []).map(function (s) { return String(s).slice(0, 120); }).slice(0, 3),
+          pontosAtencao: (comp.pontosAtencao || []).map(function (s) { return String(s).slice(0, 120); }).slice(0, 3),
+          alternativas: (comp.alternativas || []).map(function (s) { return String(s).slice(0, 60); }).slice(0, 2)
+        },
+        projecao: {
+          horizonte: String(proj.horizonte || "6 meses").slice(0, 30),
+          risco: proj.risco === "baixo" || proj.risco === "alto" ? proj.risco : "medio",
+          momentum: proj.momentum === "positivo" || proj.momentum === "negativo" ? proj.momentum : "neutro"
+        },
+        userOptions: { focus: options && options.focus || "geral", depth: options && options.depth || "padrao", experience: options && options.experience || "intermediario" },
+        keyUsed: apiKey.length > 14 ? apiKey.slice(0, 8) + "..." + apiKey.slice(-4) : apiKey
       };
     }).catch(function (error) {
-      console.warn("[gemini]", error.message);
-      var fb = heuristic(tech, github, so);
+      console.warn("[gemini] key " + (attempt + 1) + "/" + maxAttempts + " failed:", error.message);
+      KEYS.recordCall(apiKey, false, error.message);
+
+      /* Rotate to next key and retry */
+      if (attempt + 1 < maxAttempts) {
+        KEYS.next();
+        return callGeminiWithRotation(tech, github, so, timeline, options, attempt + 1);
+      }
+      /* All keys exhausted — fall back to heuristic */
+      var fb = heuristic(tech, github, so, options);
       fb.previsao += " (Gemini indisponível)";
       return fb;
     });
   }
 
   /* --- Orchestrator ------------------------------------------------------- */
-  function getInsights(input) {
+  function getInsights(input, options) {
     var tech = resolveTech(input);
+    var opts = options || {};
     return Promise.all([getGithub(tech), getStackOverflow(tech)]).then(function (r) {
       var github = r[0], so = r[1];
       var timeline = buildTimeline(github, so);
-      return getGemini(tech, github, so, timeline).then(function (ai) {
+      return getGemini(tech, github, so, timeline, opts).then(function (ai) {
         var warnings = [];
         if (!github) warnings.push("GitHub REST API não respondeu (cota ou rede). Configure um token no painel Config.");
         if (github && github.note) warnings.push(github.note);
@@ -507,9 +698,11 @@
         if (so && so.source === "demo") warnings.push("Exibindo dados de demonstração para o Stack Overflow.");
         if (ai.source === "heuristica-local") warnings.push("Sem chave Gemini: análise gerada pela heurística local.");
         warnings.push("A série histórica é estimada; apenas o ponto atual e a amostragem de stargazers são reais.");
+        if (KEYS.count() > 1) warnings.push("Rodízio de chaves Gemini ativo: " + KEYS.count() + " chaves configuradas.");
         return {
           tech: tech, github: github, stackoverflow: so, ai: ai, timeline: timeline,
           generatedAt: new Date().toISOString(), warnings: warnings,
+          userOptions: opts,
           sources: {
             github: github ? github.source : "indisponivel",
             stackoverflow: so ? so.source : "indisponivel",
@@ -525,6 +718,7 @@
     slugify: slugify, resolveTech: resolveTech,
     formatNumber: formatNumber, formatCompact: formatCompact,
     summarizeStars: summarizeStars, getInsights: getInsights,
-    heuristic: heuristic
+    heuristic: heuristic,
+    FOCUS_AREAS: FOCUS_AREAS, DEPTHS: DEPTHS, EXPERIENCE_LEVELS: EXPERIENCE_LEVELS
   };
 })();

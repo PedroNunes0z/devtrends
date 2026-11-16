@@ -45,6 +45,25 @@ const POPULAR = ["react", "vue-js", "next-js", "typescript", "python", "rust", "
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+/* --- User option constants (must match data.js) --- */
+const D_FOCUSES = {
+  "geral": "Analise geral (todos os criterios)",
+  "carreira": "Foco em carreira: demanda de mercado e empregabilidade",
+  "adocao": "Foco em adocao em projetos: estabilidade e ecossistema",
+  "aprendizado": "Foco em curva de aprendizado e documentacao",
+  "manutencao": "Foco em manutencao: atividade, issues e suporte"
+};
+const D_DEPTHS = {
+  "rapida": "Analise rapida (resumo e indice)",
+  "padrao": "Analise padrao (todos os campos do schema)",
+  "profunda": "Analise profunda (justificativa detalhada e recomendacao especifica)"
+};
+const D_EXPERIENCE = {
+  "iniciante": "Desenvolvedor iniciante",
+  "intermediario": "Desenvolvedor intermediario",
+  "avancado": "Desenvolvedor avancado / arquiteto"
+};
+
 /* --- Real code samples --------------------------------------------------- */
 const HERO_CODE = `const repo = await fetch(
   "https://api.github.com/repos/vuejs/core"
@@ -87,12 +106,12 @@ const AI_CODE = `{
 }`;
 
 const FEATURES = [
-  { title: "Três fontes, um número", body: "GitHub REST, Stack Overflow e interpretação do Gemini em uma única resposta, montada no navegador.", code: "DEVTRENDS_DATA.getInsights(\"rust\")" },
-  { title: "Origem em cada valor", body: "Cada widget declara a origem e sinaliza quando a cota pública esgotou ou o scraping foi bloqueado.", code: "sources.github = \"github-api\"" },
-  { title: "Páginas indexáveis", body: "Cada tecnologia tem HTML estático com metadata, canonical, JSON-LD de Dataset e Open Graph.", code: "reports/vue-js.html" },
-  { title: "Sem chave, ainda útil", body: "Sem chave Gemini a nota vem de uma heurística determinística, explicitamente rotulada na interface.", code: "ai.source = \"heuristica-local\"" },
-  { title: "Números animados", body: "Port vanilla do Number Ticker do Magic UI: spring, uma vez por viewport, respeitando reduced-motion.", code: "<span data-ticker=\"55039\">" },
-  { title: "Fundo ditherizado", body: "Port vanilla do Dither Field em WebGL2 ocupando a página inteira, com frame estático e fallback CSS.", code: "assets/js/dither-field.js" }
+  { title: "Tres fontes, um numero", body: "GitHub REST, Stack Overflow e interpretacao do Gemini em uma unica resposta, montada no navegador.", code: "DEVTRENDS_DATA.getInsights(\"rust\", { focus: \"carreira\" })" },
+  { title: "Origem em cada valor", body: "Cada widget declara a origem e sinaliza quando a cota publica esgotou ou o scraping foi bloqueado.", code: "sources.github = \"github-api\"" },
+  { title: "Opcoes na interface", body: "Foco da analise, profundidade, perfil do desenvolvedor e tecnologia de comparacao sao selecionados pelo usuario e enviados ao Gemini.", code: "{ focus: \"carreira\", depth: \"profunda\" }" },
+  { title: "Saida estruturada, nao texto puro", body: "Gemini devolve JSON com score breakdown, comparativo e projecao. Renderizado como barras, cards e tabelas, nunca texto solto.", code: "ai.scoreBreakdown.popularidade" },
+  { title: "Rodizio de chaves Gemini", body: "Multiplas chaves com rotacao automatica. Adicione, remova e acompanhe estatisticas de cada chave no painel Config.", code: "DEVTRENDS.keys.add(\"AIza...\")" },
+  { title: "Fundo ditherizado", body: "Port vanilla do Dither Field em WebGL2 ocupando a pagina inteira, com frame estatico e fallback CSS.", code: "assets/js/dither-field.js" }
 ];
 
 const SPECS = [
@@ -167,14 +186,26 @@ function chrome(base, isReport) {
     <a href="${anchor("tecnologias")}">Tecnologias</a>
     <a class="nav-api" href="${REPO}" target="_blank" rel="noopener noreferrer">código-fonte <span data-icon="arrowUpRight" data-icon-class="icon-sm"></span></a>
   </nav>
-  <button id="config-toggle" class="config-btn" type="button" aria-label="Configurar chaves de API"></button>
+  <button id="config-toggle" class="config-btn" type="button" aria-label="Configurar chaves de API e opcoes de analise"></button>
   <a class="nav-cta" href="${anchor("analisar")}">Consultar</a>
 </div></header>
 <div class="wrap"><div id="config-panel" class="nested config-panel">
-  <label>Chave Gemini (Google AI Studio)<input type="password" name="geminiApiKey" placeholder="AIza…" autocomplete="off"><span class="hint">Opcional. Sem ela, a análise usa a heurística local.</span></label>
-  <label>GitHub token (aumenta a cota de 60 para 5.000 req/h)<input type="password" name="githubToken" placeholder="ghp_…" autocomplete="off"><span class="hint">Opcional, somente leitura de dados públicos.</span></label>
-  <label>Stack Exchange key<input type="password" name="stackexchangeKey" placeholder="opcional" autocomplete="off"><span class="hint">Opcional. Fica apenas neste navegador (localStorage), nunca no repositório.</span></label>
-  <button type="button" class="btn btn-primary" data-config-save style="height:38px">Salvar e recarregar</button>
+  <p class="config-section-title">Chaves Gemini (rodizio automatico)</p>
+  <div class="key-add-row">
+    <div class="key-input-group">
+      <label>Nova chave Gemini<input type="password" name="new-gemini-key" placeholder="AIza..." autocomplete="off"></label>
+    </div>
+    <div class="key-input-group" style="flex:none;width:160px">
+      <label>Rotulo (opcional)<input type="text" name="new-gemini-label" placeholder="Chave 1" autocomplete="off"></label>
+    </div>
+    <button type="button" class="key-add-btn" data-add-key>Adicionar</button>
+  </div>
+  <div id="gemini-keys-list"></div>
+  <div class="config-section">
+    <label>GitHub token (aumenta a cota de 60 para 5.000 req/h)<input type="password" name="githubToken" placeholder="ghp_..." autocomplete="off"><span class="hint">Opcional, somente leitura de dados publicos.</span></label>
+    <label>Stack Exchange key<input type="password" name="stackexchangeKey" placeholder="opcional" autocomplete="off"><span class="hint">Opcional. Fica apenas neste navegador (localStorage), nunca no repositorio.</span></label>
+    <button type="button" class="btn btn-primary" data-config-save style="height:38px">Salvar e recarregar</button>
+  </div>
 </div></div>`,
     footer: `<footer class="footer"><div class="wrap footer-grid">
   <div><p class="footer-title">devtrends/insights</p><p class="prose" style="margin-top:12px">Índice de Vitalidade para decidir o que estudar ou qual stack adotar, com dados que você pode verificar.</p><p class="footer-meta">v2.0.0 · vanilla JS · MIT · pt-BR</p></div>
@@ -322,12 +353,32 @@ function landingBody() {
 
 /* --- Report page --------------------------------------------------------- */
 function reportBody(tech) {
+  const focusOptions = Object.entries(D_FOCUSES).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  const depthOptions = Object.entries(D_DEPTHS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  const expOptions = Object.entries(D_EXPERIENCE).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
   return `<div class="wrap">
-<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">início</a><span>/</span><span>insights</span><span>/</span><span style="color:var(--fg)">${esc(tech.slug)}</span></nav>
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">inicio</a><span>/</span><span>insights</span><span>/</span><span style="color:var(--fg)">${esc(tech.slug)}</span></nav>
 <div class="report-head">
-  <div><h1 class="h1 two-tone">${esc(tech.name)}: vitalidade e tendência. <span>Dados do GitHub, do Stack Overflow e uma leitura do Gemini.</span></h1></div>
-  <div><p class="prose">Relatório verificável: cada número abaixo vem de uma API pública ou de scraping, e a origem é exibida ao lado do valor.</p>
+  <div><h1 class="h1 two-tone">${esc(tech.name)}: vitalidade e tendencia. <span>Dados do GitHub, do Stack Overflow e uma leitura do Gemini.</span></h1></div>
+  <div><p class="prose">Relatorio verificavel: cada numero abaixo vem de uma API publica ou de scraping, e a origem e exibida ao lado do valor.</p>
     <div style="margin-top:20px">${searchForm(tech.name)}</div></div>
+</div>
+<div class="options-panel nested" style="margin-top:24px;padding:20px">
+  <p class="config-section-title" style="margin-bottom:14px">Opcoes de analise (enviadas ao Gemini)</p>
+  <div class="options-grid">
+    <div class="option-group">
+      <label for="analysis-focus">Foco</label>
+      <select id="analysis-focus" name="analysis-focus" data-option-control>${focusOptions}</select>
+    </div>
+    <div class="option-group">
+      <label for="analysis-depth">Profundidade</label>
+      <select id="analysis-depth" name="analysis-depth" data-option-control>${depthOptions}</select>
+    </div>
+    <div class="option-group">
+      <label for="experience-level">Perfil</label>
+      <select id="experience-level" name="experience-level" data-option-control>${expOptions}</select>
+    </div>
+  </div>
 </div>
 <div id="report"></div>
 </div>`;

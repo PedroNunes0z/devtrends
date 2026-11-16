@@ -41,14 +41,26 @@
     <a href="#tecnologias">Tecnologias</a>
     <a class="nav-api" href="https://github.com/PedroNunes0z/devtrends" target="_blank" rel="noopener noreferrer">código-fonte <span data-icon="arrowUpRight" data-icon-class="icon-sm"></span></a>
   </nav>
-  <button id="config-toggle" class="config-btn" type="button" aria-label="Configurar chaves de API"></button>
+  <button id="config-toggle" class="config-btn" type="button" aria-label="Configurar chaves de API e opcoes de analise"></button>
   <a class="nav-cta" href="#analisar">Consultar</a>
 </div></header>
 <div class="wrap"><div id="config-panel" class="nested config-panel">
-  <label>Chave Gemini (Google AI Studio)<input type="password" name="geminiApiKey" placeholder="AIza…" autocomplete="off"><span class="hint">Opcional. Sem ela, a análise usa a heurística local.</span></label>
-  <label>GitHub token (aumenta a cota de 60 para 5.000 req/h)<input type="password" name="githubToken" placeholder="ghp_…" autocomplete="off"><span class="hint">Opcional, somente leitura de dados públicos.</span></label>
-  <label>Stack Exchange key<input type="password" name="stackexchangeKey" placeholder="opcional" autocomplete="off"><span class="hint">Opcional. Fica apenas neste navegador (localStorage), nunca no repositório.</span></label>
-  <button type="button" class="btn btn-primary" data-config-save style="height:38px">Salvar e recarregar</button>
+  <p class="config-section-title">Chaves Gemini (rodizio automatico)</p>
+  <div class="key-add-row">
+    <div class="key-input-group">
+      <label>Nova chave Gemini<input type="password" name="new-gemini-key" placeholder="AIza..." autocomplete="off"></label>
+    </div>
+    <div class="key-input-group" style="flex:none;width:160px">
+      <label>Rotulo (opcional)<input type="text" name="new-gemini-label" placeholder="Chave 1" autocomplete="off"></label>
+    </div>
+    <button type="button" class="key-add-btn" data-add-key>Adicionar</button>
+  </div>
+  <div id="gemini-keys-list"></div>
+  <div class="config-section">
+    <label>GitHub token (aumenta a cota de 60 para 5.000 req/h)<input type="password" name="githubToken" placeholder="ghp_..." autocomplete="off"><span class="hint">Opcional, somente leitura de dados publicos.</span></label>
+    <label>Stack Exchange key<input type="password" name="stackexchangeKey" placeholder="opcional" autocomplete="off"><span class="hint">Opcional. Fica apenas neste navegador (localStorage), nunca no repositorio.</span></label>
+    <button type="button" class="btn btn-primary" data-config-save style="height:38px">Salvar e recarregar</button>
+  </div>
 </div></div>
 <main id="conteudo">
 <section class="hero wrap" id="analisar">
@@ -162,7 +174,7 @@ console.log(totals.items[0].count);</code></pre></div>
 
 <section class="section wrap">
   <div class="sample-head"><h2 class="h2 two-tone">O que está implementado. <span>Sem slide de marketing.</span></h2><span class="eyebrow">3.0 Capacidades →</span></div>
-  <div class="feature-grid"><div class="feature-cell"><h3 class="h3">Três fontes, um número</h3><p>GitHub REST, Stack Overflow e interpretação do Gemini em uma única resposta, montada no navegador.</p><code>DEVTRENDS_DATA.getInsights(&quot;rust&quot;)</code></div><div class="feature-cell"><h3 class="h3">Origem em cada valor</h3><p>Cada widget declara a origem e sinaliza quando a cota pública esgotou ou o scraping foi bloqueado.</p><code>sources.github = &quot;github-api&quot;</code></div><div class="feature-cell"><h3 class="h3">Páginas indexáveis</h3><p>Cada tecnologia tem HTML estático com metadata, canonical, JSON-LD de Dataset e Open Graph.</p><code>reports/vue-js.html</code></div><div class="feature-cell"><h3 class="h3">Sem chave, ainda útil</h3><p>Sem chave Gemini a nota vem de uma heurística determinística, explicitamente rotulada na interface.</p><code>ai.source = &quot;heuristica-local&quot;</code></div><div class="feature-cell"><h3 class="h3">Números animados</h3><p>Port vanilla do Number Ticker do Magic UI: spring, uma vez por viewport, respeitando reduced-motion.</p><code>&lt;span data-ticker=&quot;55039&quot;&gt;</code></div><div class="feature-cell"><h3 class="h3">Fundo ditherizado</h3><p>Port vanilla do Dither Field em WebGL2 ocupando a página inteira, com frame estático e fallback CSS.</p><code>assets/js/dither-field.js</code></div></div>
+  <div class="feature-grid"><div class="feature-cell"><h3 class="h3">Tres fontes, um numero</h3><p>GitHub REST, Stack Overflow e interpretacao do Gemini em uma unica resposta, montada no navegador.</p><code>DEVTRENDS_DATA.getInsights(&quot;rust&quot;, { focus: &quot;carreira&quot; })</code></div><div class="feature-cell"><h3 class="h3">Origem em cada valor</h3><p>Cada widget declara a origem e sinaliza quando a cota publica esgotou ou o scraping foi bloqueado.</p><code>sources.github = &quot;github-api&quot;</code></div><div class="feature-cell"><h3 class="h3">Opcoes na interface</h3><p>Foco da analise, profundidade, perfil do desenvolvedor e tecnologia de comparacao sao selecionados pelo usuario e enviados ao Gemini.</p><code>{ focus: &quot;carreira&quot;, depth: &quot;profunda&quot; }</code></div><div class="feature-cell"><h3 class="h3">Saida estruturada, nao texto puro</h3><p>Gemini devolve JSON com score breakdown, comparativo e projecao. Renderizado como barras, cards e tabelas, nunca texto solto.</p><code>ai.scoreBreakdown.popularidade</code></div><div class="feature-cell"><h3 class="h3">Rodizio de chaves Gemini</h3><p>Multiplas chaves com rotacao automatica. Adicione, remova e acompanhe estatisticas de cada chave no painel Config.</p><code>DEVTRENDS.keys.add(&quot;AIza...&quot;)</code></div><div class="feature-cell"><h3 class="h3">Fundo ditherizado</h3><p>Port vanilla do Dither Field em WebGL2 ocupando a pagina inteira, com frame estatico e fallback CSS.</p><code>assets/js/dither-field.js</code></div></div>
 </section>
 
 <section class="section wrap" id="tecnologias">

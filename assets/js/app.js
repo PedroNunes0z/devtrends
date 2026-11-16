@@ -1,5 +1,13 @@
 /* =========================================================================
-   app.js — bootstrap: navigation, icons, config panel, live sample, report.
+   app.js — bootstrap: navigation, icons, config panel, key rotation panel,
+   user option controls, live sample, report.
+
+   User-selected options (focus, depth, experience, comparison target) are
+   captured in the UI and passed into getInsights(), which includes them in
+   the Gemini prompt alongside GitHub and Stack Overflow data.
+
+   Gemini API keys are managed in a dedicated rotation panel with add/remove,
+   active-key indicator, and call/error statistics.
    ========================================================================= */
 (function () {
   "use strict";
@@ -58,7 +66,25 @@
     });
   }
 
-  /* --- Config panel ------------------------------------------------------- */
+  /* --- Collect user options from the UI controls --- */
+  function collectOptions() {
+    var opts = {};
+    var focusEl = document.querySelector('[name="analysis-focus"]');
+    if (focusEl) opts.focus = focusEl.value;
+    var depthEl = document.querySelector('[name="analysis-depth"]');
+    if (depthEl) opts.depth = depthEl.value;
+    var expEl = document.querySelector('[name="experience-level"]');
+    if (expEl) opts.experience = expEl.value;
+    var compareEl = document.querySelector('[name="compare-with"]');
+    if (compareEl && compareEl.value.trim()) opts.compareWith = compareEl.value.trim();
+    var careerEl = document.querySelector('[name="consider-career"]');
+    if (careerEl) opts.considerCareer = careerEl.checked;
+    var horizonEl = document.querySelector('[name="time-horizon"]');
+    if (horizonEl && horizonEl.value) opts.timeHorizon = horizonEl.value;
+    return opts;
+  }
+
+  /* --- Config panel with key rotation UI --- */
   function wireConfig(onSaved) {
     var toggle = document.getElementById("config-toggle");
     var panel = document.getElementById("config-panel");
@@ -68,16 +94,18 @@
     toggle.style.alignItems = "center";
     toggle.style.gap = "6px";
 
-    ["geminiApiKey", "githubToken", "stackexchangeKey"].forEach(function (key) {
+    /* Standard keys */
+    ["githubToken", "stackexchangeKey"].forEach(function (key) {
       var input = panel.querySelector('[name="' + key + '"]');
       if (input) input.value = window.DEVTRENDS.stored[key] || "";
     });
 
-    toggle.addEventListener("click", function () { panel.classList.toggle("open"); });
+    toggle.addEventListener("click", function () { panel.classList.toggle("open"); renderKeysList(); });
+
     var save = panel.querySelector("[data-config-save]");
     if (save) save.addEventListener("click", function () {
       var values = {};
-      ["geminiApiKey", "githubToken", "stackexchangeKey"].forEach(function (key) {
+      ["githubToken", "stackexchangeKey"].forEach(function (key) {
         var input = panel.querySelector('[name="' + key + '"]');
         if (input) values[key] = input.value.trim();
       });
@@ -85,6 +113,74 @@
       panel.classList.remove("open");
       if (onSaved) onSaved();
     });
+
+    /* --- Gemini key rotation UI --- */
+    var addKeyBtn = panel.querySelector("[data-add-key]");
+    var newKeyInput = panel.querySelector('[name="new-gemini-key"]');
+    var newKeyLabel = panel.querySelector('[name="new-gemini-label"]');
+
+    if (addKeyBtn && newKeyInput) {
+      addKeyBtn.addEventListener("click", function () {
+        var val = newKeyInput.value.trim();
+        if (!val) return;
+        var label = newKeyLabel ? newKeyLabel.value.trim() : "";
+        var ok = window.DEVTRENDS.keys.add(val, label);
+        if (ok) {
+          newKeyInput.value = "";
+          if (newKeyLabel) newKeyLabel.value = "";
+          renderKeysList();
+        }
+      });
+      /* Allow Enter to submit */
+      newKeyInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); if (addKeyBtn) addKeyBtn.click(); }
+      });
+    }
+  }
+
+  function renderKeysList() {
+    var container = document.getElementById("gemini-keys-list");
+    if (!container) return;
+    var keys = window.DEVTRENDS.keys.get();
+    var stats = window.DEVTRENDS.keys.stats();
+
+    if (!keys.length) {
+      container.innerHTML = '<p class="key-empty">Nenhuma chave Gemini configurada. Adicione acima para usar o Gemini em vez da heurística local.</p>';
+      return;
+    }
+
+    container.innerHTML = keys.map(function (k) {
+      var s = stats[k.value] || {};
+      var active = s.active;
+      var masked = s.masked || k.value.slice(0, 8) + "...";
+      var statusCls = s.errors > 0 && s.calls > 0 && s.errors / s.calls > 0.5 ? "key-error" : "key-ok";
+      return '<div class="key-row ' + (active ? "key-active" : "") + '">' +
+        '<span class="key-status ' + statusCls + '" title="' + (active ? "Ativa" : "Inativa") + '"></span>' +
+        '<span class="key-masked mono">' + masked + '</span>' +
+        '<span class="key-label">' + esc(k.label || "") + '</span>' +
+        '<span class="key-stats mono">' +
+          (s.calls || 0) + ' chamadas' +
+          (s.errors ? ', ' + s.errors + ' erros' : '') +
+        '</span>' +
+        (active ? '<span class="key-active-tag">ATIVA</span>' : "") +
+        '<button type="button" class="key-remove-btn" data-remove-key="' + esc(k.value) + '" aria-label="Remover chave">' + ICONS.get("refresh", "icon-sm") + '</button>' +
+      '</div>';
+    }).join("");
+
+    /* Wire remove buttons */
+    Array.prototype.forEach.call(container.querySelectorAll("[data-remove-key]"), function (btn) {
+      btn.addEventListener("click", function () {
+        var val = btn.getAttribute("data-remove-key");
+        window.DEVTRENDS.keys.remove(val);
+        renderKeysList();
+      });
+    });
+
+    injectIcons(container);
+  }
+
+  function esc(text) {
+    return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
   /* --- Status ------------------------------------------------------------- */
@@ -97,7 +193,7 @@
     var target = document.getElementById("live-sample");
     if (!target) return;
     target.innerHTML = status("Consultando GitHub, Stack Overflow e Gemini…", true);
-    D.getInsights("React").then(function (report) {
+    D.getInsights("React", collectOptions()).then(function (report) {
       target.innerHTML = W.trendOnly(report);
       window.DEVTRENDS_TICKER.mount(target);
       H.mount(target);
@@ -115,7 +211,8 @@
     target.innerHTML = status("GET GitHub + Stack Overflow + Gemini…", true);
 
     function load() {
-      D.getInsights(slug).then(function (report) {
+      var opts = collectOptions();
+      D.getInsights(slug, opts).then(function (report) {
         document.title = report.tech.name + ": tendência, popularidade e saúde da comunidade (" + report.ai.indiceVitalidade + "/100) | DevTrends Insights";
         W.render(target, report);
         injectIcons(target);
@@ -124,7 +221,21 @@
       });
     }
     wireConfig(load);
+
+    /* Wire option change listeners for re-analysis */
+    wireOptionControls(load);
+
     load();
+  }
+
+  /* --- Wire option controls to trigger reload on change --- */
+  function wireOptionControls(onChange) {
+    var controls = document.querySelectorAll('[data-option-control]');
+    Array.prototype.forEach.call(controls, function (el) {
+      el.addEventListener("change", function () {
+        if (onChange) onChange();
+      });
+    });
   }
 
   function init() {

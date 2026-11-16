@@ -7,6 +7,11 @@
 
    Simpler alternative for most users: open the site and use the "Config"
    button in the top bar. Keys are saved in localStorage only.
+
+   --- Multiple Gemini keys ---
+   The Config panel supports multiple Gemini API keys with automatic rotation.
+   When a key fails, the next one is tried. Keys are stored in
+   localStorage under devtrends.gemini-keys.v1.
    ========================================================================= */
 window.DEVTRENDS_CONFIG = {
   /* Public, non-secret endpoints */
@@ -17,7 +22,6 @@ window.DEVTRENDS_CONFIG = {
   // cacheTtlMinutes: 60,
 
   /* Secrets — prefer the Config panel; never commit real values */
-  // geminiApiKey: "",
   // githubToken: "",
   // stackexchangeKey: ""
 };
