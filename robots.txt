@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://pedronunes0z.github.io/devtrends/sitemap.xml

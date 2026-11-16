@@ -1,0 +1,14 @@
+# Local secrets — never commit
+config.local.js
+.env
+.env.local
+.env.*.local
+
+# Tooling leftovers (the site itself needs no dependencies)
+node_modules/
+.tmp/
+.next/
+*.tsbuildinfo
+*.log
+.DS_Store
+Thumbs.db
