@@ -89,7 +89,7 @@
     "github-api": "GitHub REST API",
     "github-html": "GitHub página pública",
     "stackexchange-api": "Stack Exchange API",
-    "hn-algolia": "Hacker News API pública (Algolia)",
+    "hn-scrape": "Hacker News (scraping HTML)",
     demo: "dados de demonstração",
     "heuristica-local": "heurística local",
     gemini: "Gemini",
@@ -546,8 +546,8 @@
   function hnSection(report) {
     var hackerNews = report.hn;
     if (!hackerNews) return "";
-    var processDescription = 'Processo: <code class="inline-code">' + esc(hackerNews.siteUrl) + '</code> (front page em HTML estático) · ' +
-      '<code class="inline-code">hn.algolia.com/api/v1/search_by_date</code> (busca por data, menções em títulos) — via <a href="' + esc(hackerNews.searchUrl) + '" target="_blank" rel="noopener noreferrer">busca do HN por "' + esc(hackerNews.query) + '"</a>';
+    var processDescription = 'Processo: <code class="inline-code">' + esc(hackerNews.siteUrl) + '</code> (front page em HTML) · ' +
+      '<code class="inline-code">' + esc(hackerNews.siteUrl) + '/newest + /front?p=1..5</code> (arquivo em HTML, menções em títulos) — via <a href="' + esc(hackerNews.searchUrl) + '" target="_blank" rel="noopener noreferrer">arquivo da front page do HN</a>';
 
     var frontPage = hackerNews.frontPage;
     var frontPageTag = !frontPage || !frontPage.posts
@@ -556,7 +556,7 @@
         ? '<li class="health-tag pos"><span aria-hidden="true">+</span><span>#na front page do HN agora (' + frontPage.matches + ' de ' + frontPage.posts + ' posts)</span></li>'
         : '<li class="health-tag neu"><span aria-hidden="true">·</span><span>#fora da front page do HN agora (' + frontPage.posts + ' posts no ar)</span></li>';
 
-    if (hackerNews.source !== "hn-algolia") {
+    if (hackerNews.source !== "hn-scrape") {
       return '<section class="section" aria-labelledby="hn-h">' +
         '<div class="section-head"><h2 class="h2 headline two-tone" id="hn-h">HACKER NEWS ' + hackerNewsLogo(16) + '. <span>Buzz da comunidade.</span></h2>' +
         '<div class="detail"><p style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>' + processDescription + '</span></p><p class="index">7.0 HACKER NEWS →</p></div></div>' +
@@ -595,7 +595,7 @@
       '</div>' +
       (frontPageTag ? '<ul class="health-tags" style="margin-top:16px">' + frontPageTag + '</ul>' : "") +
       postsHtml +
-      '<div class="timeline-note" style="margin-top:12px"><span class="mono">métrica:</span> posts (stories) cujo título menciona "' + esc(hackerNews.query) + '", contados na API pública de busca do Hacker News; comparação semana a semana indica aceleração do interesse. Cada janela cobre até 1.000 posts.</div>' +
+      '<div class="timeline-note" style="margin-top:12px"><span class="mono">métrica:</span> posts (stories) cujo título menciona "' + esc(hackerNews.query) + '", extraídos do HTML do Hacker News (/newest e /front, sem API); comparação semana a semana indica aceleração do interesse. O arquivo público cobre apenas os últimos dias.</div>' +
       '</section>';
   }
 
@@ -649,7 +649,7 @@
     var githubApiLink = githubRepoName ? window.DEVTRENDS.config.githubApi + '/repos/' + esc(githubRepoName) : '';
     var githubWebLink = githubRepoName ? 'https://github.com/' + esc(githubRepoName) : '';
     var stackOverflowLink = report.stackoverflow && report.stackoverflow.tagUrl ? esc(report.stackoverflow.tagUrl) : '#';
-    var hackerNewsLink = report.hn && report.hn.searchUrl && report.hn.source === "hn-algolia" ? esc(report.hn.searchUrl) : '';
+    var hackerNewsLink = report.hn && report.hn.searchUrl && report.hn.source === "hn-scrape" ? esc(report.hn.searchUrl) : '';
 
     return '<section class="section"><aside class="nested source-notice" aria-label="Proveniência dos dados">' +
       '<div class="source-badges"><span class="mono" style="font-size:12px;color:var(--tertiary)">proveniência:</span>' + badges +

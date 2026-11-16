@@ -1,10 +1,10 @@
 /* =========================================================================
    http.js — cliente HTTP com timeout e cache opcional em localStorage.
 
-   Responsabilidade única: fazer requisições JSON com cancelamento por
-   timeout e traduzir respostas de erro HTTP em Error com mensagem útil.
-   O cache é opt-in por chamada (cachedJson); o Hacker News, por exemplo,
-   usa requestJson direto para garantir dados em tempo real.
+   Responsabilidade única: fazer requisições JSON ou texto (HTML) com
+   cancelamento por timeout e traduzir respostas de erro HTTP em Error com
+   mensagem útil. O cache é opt-in por chamada (cachedJson); o Hacker News,
+   por exemplo, usa requestText direto para raspar HTML em tempo real.
    ========================================================================= */
 (function () {
   "use strict";
@@ -62,6 +62,35 @@
       });
   }
 
+  /**
+   * Executa uma requisição de texto puro (HTML para scraping) com o mesmo
+   * timeout e tratamento de erro de requestJson. Sem cache: o HTML do HN
+   * precisa ser sempre o mais recente.
+   * @param {string} url
+   * @param {{method?: string, headers?: Object, timeoutMs?: number}} [options]
+   * @returns {Promise<string>}
+   */
+  function requestText(url, options) {
+    var requestOptions = options || {};
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, requestOptions.timeoutMs || config.timeoutMs);
+
+    return fetch(url, {
+      method: requestOptions.method || "GET",
+      headers: requestOptions.headers || {},
+      signal: controller.signal,
+      mode: "cors",
+      credentials: "omit"
+    }).then(function (response) {
+      clearTimeout(timer);
+      if (!response.ok) return rejectWithHttpError(response, url);
+      return response.text();
+    }).catch(function (error) {
+      clearTimeout(timer);
+      throw error;
+    });
+  }
+
   function cacheKey(url) {
     return CACHE_KEY_PREFIX + url;
   }
@@ -109,5 +138,5 @@
     });
   }
 
-  window.DEVTRENDS_HTTP = { requestJson: requestJson, cachedJson: cachedJson };
+  window.DEVTRENDS_HTTP = { requestJson: requestJson, requestText: requestText, cachedJson: cachedJson };
 })();

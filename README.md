@@ -17,7 +17,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/PedroNunes0z/devtrends?style=flat-square&logo=github&color=F07178)](https://github.com/PedroNunes0z/devtrends/issues)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-2EA043?style=flat-square&logo=github&logoColor=white)](https://github.com/PedroNunes0z/devtrends/pulls)
 
-Cruza dados reais do **GitHub REST API** com o volume de dúvidas e a taxa de resolução do **Stack Overflow** e o **buzz no Hacker News** (menções em títulos, semana a semana, em tempo real) e pede ao **Google Gemini** um *Índice de Vitalidade* (0–100), uma previsão de tendência e tags de saúde da comunidade. Todo relatório é gerado no clique de **Analisar** — nada estático no caminho.
+Cruza dados reais do **GitHub REST API** com o volume de dúvidas e a taxa de resolução do **Stack Overflow** e o **buzz no Hacker News** (obtido por *scraping* do HTML do site, menções em títulos, semana a semana, em tempo real) e pede ao **Google Gemini** um *Índice de Vitalidade* (0–100), uma previsão de tendência e tags de saúde da comunidade. Todo relatório é gerado no clique de **Analisar** — nada estático no caminho.
 
 Feito com **HTML, CSS e JavaScript puro (Vanilla JS)** — sem framework, sem bundler, sem `node_modules` para rodar. Publicado em **GitHub Pages**.
 
@@ -27,32 +27,35 @@ Feito com **HTML, CSS e JavaScript puro (Vanilla JS)** — sem framework, sem bu
 
 ## 1. Instalação e execução
 
-Requisito para rodar: apenas um servidor de arquivos estáticos (ou Python 3 / Node 18+). **Não há `npm install`.**
+Requisito para rodar: **Node 18+**. Não há `npm install` nem etapa de build.
 
 ```bash
 git clone https://github.com/PedroNunes0z/devtrends.git
 cd devtrends
-python -m http.server 8080
+node tools/scraper.mjs
 ```
 
-Abra <http://localhost:8080/>.
-
-Alternativas equivalentes:
-
-```bash
-npx serve .            # Node
-php -S localhost:8080  # PHP
-```
+Abra <http://localhost:8787/>. O mesmo processo serve a página e a API REST própria. Para trocar a porta: `PORT=3000 node tools/scraper.mjs`.
 
 > Abrir `index.html` com `file://` não funciona: `fetch` para APIs externas e módulos relativos exigem HTTP.
 
-Não há etapa de build ou geração estática: `reports/` não existe, todos os relatórios são **gerados no clique do botão "Analisar"** pelo próprio navegador.
+Também é possível servir só os arquivos estáticos (`python -m http.server 8080`), mas nesse modo a API REST do aluno não está disponível e o HN cai para o fallback via proxies CORS. Todos os relatórios são **gerados no clique do botão "Analisar"**.
+
+### Requisitos atendidos
+
+| Requisito | Onde está |
+| --- | --- |
+| Web app responsiva, mobile first | `index.html` + `assets/css/styles.css` (base mobile, refinamentos em `@media (min-width: 768px/1024px)`) |
+| API REST de terceiros | GitHub REST API (`source-github.js`) e Stack Exchange API (`source-stackoverflow.js`) |
+| API do LLM Gemini | `insights-ai.js` (prompt estruturado, rodízio de chaves; heurística local sem chave) |
+| API REST própria com web scraping | `tools/scraper.mjs` → `GET /api/hackernews?tech=...` raspa o HTML do Hacker News e devolve JSON |
+| Serviço útil | Índice de Vitalidade (0–100), tendência e tags de saúde da comunidade para qualquer tecnologia |
 
 ---
 
 ## 2. Configuração (as "variáveis de ambiente")
 
-Como o site é 100% estático, **não existem variáveis de ambiente de servidor**. Há duas formas de configurar:
+O servidor Node usa apenas `PORT` e `HOST` (opcionais). Os valores das APIs são públicos ou ficam no `localStorage` do navegador. Há duas formas de configurar:
 
 ### Forma recomendada — painel no site
 
@@ -97,7 +100,9 @@ Edite `config.local.js` e inclua a tag **antes** de `assets/js/config.js` nos HT
 | `githubApi` | `https://api.github.com` | Base da REST API |
 | `stackexchangeApi` | `https://api.stackexchange.com/2.3` | Base da API de fallback |
 | `stackOverflow` | `https://stackoverflow.com` | Links das perguntas |
-| `hnAlgolia` | `https://hn.algolia.com/api/v1` | API pública de busca do Hacker News (Algolia, CORS liberado, sem cache) |
+| `hnApiBase` | `/api` | Base da API REST própria (`/api/hackernews`) |
+| `hnSite` | `https://news.ycombinator.com` | Site do Hacker News, alvo do *scraping* de HTML |
+| `hnScrapeProxies` | `["https://api.allorigins.win/raw?url=", ...]` | Cadeia de proxies CORS usada **somente** no fallback estático |
 | `geminiApi` | `https://generativelanguage.googleapis.com/v1beta` | Base do Gemini |
 | `geminiModel` | `gemini-3.5-flash-lite` | Modelo com *structured output* |
 | `cacheTtlMinutes` | `60` | TTL do cache de respostas no navegador |
@@ -111,21 +116,42 @@ Edite `config.local.js` e inclua a tag **antes** de `assets/js/config.js` nos HT
 
 ## 3. Dados do Hacker News: buzz semanal em tempo real
 
-### Hacker News: via API pública de busca
+### Hacker News: API REST própria com web scraping
 
-O Hacker News é um ótimo termômetro do que está em alta, e a busca oficial do site é a API pública da **Algolia** (`https://hn.algolia.com/api/v1`), com CORS liberado — funciona em qualquer ambiente, inclusive no GitHub Pages. O app faz três chamadas:
-
-1. `search_by_date?tags=story&numericFilters=created_at_i>agora-7d` — posts da última semana que casam com o termo;
-2. `search_by_date?tags=story&numericFilters=created_at_i>agora-14d,created_at_i<agora-7d` — semana anterior, para a variação;
-3. `search?tags=front_page` — a front page atual, para saber se a tecnologia está na home agora.
-
-O casamento é feito **no título de cada post** com os nomes e aliases do catálogo (ex.: `reactjs` também casa com "React", "react.js"), com contagem de palavras inteiras para evitar falsos positivos. O resultado entra no relatório como uma seção dedicada — menções em títulos nas duas janelas, variação percentual semana a semana, selo de presença na front page e posts recentes com pontos e comentários — e no prompt do Gemini, no formato: *"A tecnologia X foi mencionada em 42 títulos de posts no Hacker News na última semana, um aumento de 20% em relação à semana anterior."*
+`tools/scraper.mjs` é a **API REST criada para este trabalho**. O cliente chama:
 
 ```
-https://hn.algolia.com/api/v1/search_by_date?tags=story&query=react&numericFilters=created_at_i>1730000000
+GET /api/hackernews?tech=react&aliases=reactjs,react.js
 ```
 
-Fonte no relatório: `hn-algolia`. Termos que são palavras comuns em inglês (ex.: "go") são ignorados no casamento para não inflar o número.
+O servidor faz o *web scraping* de HTML (sem usar a API da Algolia). O HN desativou `/search` — o próprio formulário do site aponta para a Algolia — então a fonte é:
+
+1. `news.ycombinator.com/newest` — os posts mais recentes;
+2. `news.ycombinator.com/front?p=1..5` — o arquivo público da front page, que cobre os últimos dias;
+3. `news.ycombinator.com/` — a front page atual, para saber se a tecnologia está na home agora.
+
+De cada linha (`tr.athing`) são extraídos título, pontos, comentários e idade (atributo `title` do campo de idade ou texto relativo como "3 hours ago"). O casamento é feito **no título de cada post** com os nomes e aliases enviados pelo cliente (ex.: `reactjs` também casa com "React", "react.js"), com contagem de palavras inteiras para evitar falsos positivos. A resposta é JSON já estruturado:
+
+```json
+{
+  "source": "hn-scrape",
+  "query": "react",
+  "searchUrl": "https://news.ycombinator.com/front",
+  "titlesLast7d": 3,
+  "titlesPrev7d": 2,
+  "deltaPct": 50,
+  "matchesLast7d": 12,
+  "frontPage": { "posts": 30, "matches": 0 },
+  "recentPosts": [],
+  "note": "API REST própria: scraping do HTML do news.ycombinator.com ..."
+}
+```
+
+Esse resultado alimenta a seção dedicada do relatório e o prompt do Gemini: *"A tecnologia X foi mencionada em N títulos de posts no Hacker News na última semana, um aumento de Y% em relação à semana anterior."* Termos comuns em inglês (ex.: "go") são ignorados no casamento. A resposta fica em cache por 5 minutos para não sobrecarregar o HN. Como o arquivo público cobre apenas alguns dias, a semana anterior pode ficar sem base — nesse caso a variação aparece como "sem base de comparação", nunca como zero inventado.
+
+Outros endpoints: `GET /api/health`. Erros de scraping retornam HTTP 502 com `source: "indisponivel"` — nunca números inventados.
+
+**Fallback:** se a página for servida sem o Node (por exemplo, GitHub Pages estático), `source-hackernews.js` tenta raspar o HTML no navegador via proxies CORS (`hnScrapeProxies`). Para usar a API REST do aluno, sirva sempre com `node tools/scraper.mjs`.
 
 ---
 
@@ -147,6 +173,8 @@ gh api -X POST repos/PedroNunes0z/devtrends/pages \
 ```
 
 O arquivo `.nojekyll` impede que o GitHub ignore pastas/arquivos com `_`. `sitemap.xml` e `robots.txt` já apontam para a URL pública.
+
+> O GitHub Pages serve apenas arquivos estáticos: nele, a API REST própria não roda e o HN usa o fallback via proxies. Para a versão completa do trabalho, hospede `tools/scraper.mjs` num serviço Node (ele já responde `PORT`/`HOST` por variáveis de ambiente) e configure `hnApiBase` com a URL pública da API.
 
 ---
 
@@ -206,14 +234,15 @@ assets/js/
   timeline.js               série histórica de 12 meses derivada dos totais reais
   source-github.js          fonte: GitHub REST API (repo + amostragem de stargazers)
   source-stackoverflow.js   fonte: Stack Exchange API (totais + amostra de perguntas)
-  source-hackernews.js      fonte: Hacker News/Algolia, buzz em títulos em tempo real
+  source-hackernews.js      fonte: Hacker News por scraping de HTML, buzz em títulos em tempo real
   insights-ai.js            prompt do Gemini com rodízio de chaves + heurística local
   data.js                   orquestrador: fontes + timeline + Gemini + avisos
   widgets.js                cartão de tendência, gauge, tags, gráfico de barras, projeção, comparativo, tabela, proveniência
   app.js                    bootstrap, botão "Analisar" (relatório on demand), painel Config, rodízio de chaves, opções de análise
 assets/img/                 favicon.svg, og-default.png
 assets/video/               devtrends.mp4 (vídeo de demonstração exibido no site)
-tools/                      (removido — o scraping local foi substituído por APIs em tempo real)
+tools/
+  scraper.mjs               servidor da app + API REST própria: raspa o HTML do HN e devolve JSON
 config.example.js           modelo de config local
 SKILL.md                    sistema de design de referência
 ```
@@ -223,7 +252,7 @@ SKILL.md                    sistema de design de referência
 ## 8. Honestidade dos dados e uso do Gemini
 
 - Estrelas, forks, issues, watchers e datas: **GitHub REST API**.
-- Total de perguntas e total sem resposta: **Stack Exchange API**; buzz: **Hacker News** (API pública de busca, menções em títulos 7d vs. 7d anteriores, sem cache — tempo real).
+- Total de perguntas e total sem resposta: **Stack Exchange API**; buzz: **Hacker News** via **API REST própria** que raspa o HTML (menções em títulos 7d vs. 7d anteriores, cache de 5 min — tempo real).
 - Frequência de perguntas sem resposta: amostra das perguntas recentes da API.
 - Histórico de 12 meses: **estimado** a partir dos totais reais de hoje, da idade do repositório e da velocidade real dos últimos stargazers. O gráfico diz isso explicitamente.
 - Sem chaves Gemini: nota, tendência e tags vêm de uma **heurística local**, identificada na interface.

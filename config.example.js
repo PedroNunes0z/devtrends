@@ -18,6 +18,9 @@ window.DEVTRENDS_CONFIG = {
   // siteUrl: "https://pedronunes0z.github.io/devtrends",
   // githubApi: "https://api.github.com",
   // stackexchangeApi: "https://api.stackexchange.com/2.3",
+  // hnSite: "https://news.ycombinator.com",
+  // hnApiBase: "/api", // API REST própria; use a URL pública se hospedar o servidor à parte
+  // hnScrapeProxies: ["https://api.allorigins.win/raw?url="], // fallback só para estático
   // geminiModel: "gemini-3.5-flash-lite",
   // cacheTtlMinutes: 60,
 

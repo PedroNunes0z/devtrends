@@ -304,14 +304,14 @@
    * @returns {string} vazio quando não há nada a reportar
    */
   function buildHackerNewsBlock(hackerNews) {
-    if (hackerNews && hackerNews.source === "hn-algolia") {
+    if (hackerNews && hackerNews.source === "hn-scrape") {
       return [
-        "== HACKER NEWS (API pública de busca, Algolia) ==",
+        "== HACKER NEWS (scraping do HTML em news.ycombinator.com) ==",
         "Termo buscado: \"" + hackerNews.query + "\" em TÍTULOS de posts (stories)",
         "Posts com a tecnologia no título, últimos 7 dias: " + hackerNews.titlesLast7d,
         "Posts com a tecnologia no título, 7 dias anteriores: " + hackerNews.titlesPrev7d,
         hackerNews.deltaPct !== null ? "Variação semana a semana: " + (hackerNews.deltaPct > 0 ? "+" : "") + hackerNews.deltaPct + "%" : "",
-        "Menções totais (título + texto + url) na última semana: " + hackerNews.matchesLast7d,
+        "Posts com o termo no título ou URL na última semana (amostra HTML): " + hackerNews.matchesLast7d,
         hackerNews.frontPage && hackerNews.frontPage.posts > 0
           ? "Front page do news.ycombinator.com agora: " + hackerNews.frontPage.posts + " posts no ar, " + hackerNews.frontPage.matches + " mencionando a tecnologia."
           : "",
@@ -321,7 +321,7 @@
       ].filter(Boolean).join("\n");
     }
     if (hackerNews) {
-      return "== HACKER NEWS ==\nDados do Hacker News INDISPONÍVEIS (" + (hackerNews.note || "API não respondeu") + ").";
+      return "== HACKER NEWS ==\nDados do Hacker News INDISPONÍVEIS (" + (hackerNews.note || "HTML indisponível") + ").";
     }
     return "";
   }

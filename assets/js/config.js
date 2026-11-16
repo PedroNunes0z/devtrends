@@ -19,7 +19,17 @@
     githubApi: "https://api.github.com",
     stackexchangeApi: "https://api.stackexchange.com/2.3",
     stackOverflow: "https://stackoverflow.com",
-    hnAlgolia: "https://hn.algolia.com/api/v1",
+    hnSite: "https://news.ycombinator.com",
+    /* API REST própria (node tools/scraper.mjs): encapsula o scraping do HN
+       e devolve JSON. Quando a app é servida como arquivos estáticos, a
+       chamada falha e o cliente tenta os proxies de CORS abaixo. */
+    hnApiBase: "/api",
+    /* news.ycombinator.com não envia CORS: fallback para hospedagem estática. */
+    hnScrapeProxies: [
+      "https://api.allorigins.win/raw?url=",
+      "https://api.codetabs.com/v1/proxy?quest=",
+      "https://corsproxy.io/?"
+    ],
     geminiApi: "https://generativelanguage.googleapis.com/v1beta",
     geminiModel: "gemini-3.5-flash-lite",
     cacheTtlMinutes: 60,
