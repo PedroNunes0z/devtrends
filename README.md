@@ -118,6 +118,8 @@ Edite `config.local.js` e inclua a tag **antes** de `assets/js/config.js` nos HT
 
 ### Hacker News: API REST própria com web scraping
 
+A interface também traz a documentação completa na aba **API** do menu (`#api-docs`): visão geral, endpoints, contrato de resposta e erros.
+
 `tools/scraper.mjs` é a **API REST criada para este trabalho**. O cliente chama:
 
 ```

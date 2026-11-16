@@ -363,6 +363,63 @@ pre,
   background: var(--elevated);
 }
 
+/* --- API docs: abas ------------------------------------------------------ */
+.api-tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 28px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.api-tab {
+  flex: none;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--secondary);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.api-tab[aria-selected="true"] {
+  background: var(--fg);
+  color: var(--base);
+  border-color: var(--fg);
+}
+
+.api-tab:focus-visible {
+  outline: 2px solid var(--fn);
+  outline-offset: 2px;
+}
+
+.api-panel {
+  margin-top: 16px;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.api-panel[hidden] {
+  display: none;
+}
+
+.api-doc-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .api-doc-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 /* --- Dither Field: full-page fixed background --------------------------- */
 .dither-bg {
   position: fixed;

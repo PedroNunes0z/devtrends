@@ -49,6 +49,7 @@
           <a href="#como-funciona">Como funciona</a>
           <a href="#video">Vídeo</a>
           <a href="#fontes">Fontes</a>
+          <a href="#api-docs">API</a>
           <a href="#tecnologias">Tecnologias</a>
           <a class="nav-api" href="https://github.com/PedroNunes0z/devtrends" target="_blank"
             rel="noopener noreferrer">código-fonte <span data-icon="arrowUpRight" data-icon-class="icon-sm"></span></a>
@@ -333,8 +334,10 @@ console.log(totals.items[0].count);</code></pre>
           <h2 class="h2 headline two-tone">Rotas e cotas. <span>O que cada consulta custa.</span></h2>
           <div class="detail">
             <p>O GitHub permite 60 requisições por hora sem token e 5.000 com token. A Stack Exchange API aceita 300 por
-              dia sem chave. Nada roda em servidor: tudo é chamado pelo seu navegador.</p>
-            <p class="index"><a href="sitemap.xml">baixar sitemap →</a></p>
+              dia sem chave. GitHub e Stack Exchange são chamados pelo navegador; o scraping do Hacker News roda na
+              nossa própria API Node.</p>
+            <p class="index"><a href="#api-docs">documentação da API própria →</a><br><a
+                href="sitemap.xml">baixar sitemap →</a></p>
           </div>
         </div>
         <div class="table-wrap" style="margin-top:28px">
@@ -364,11 +367,11 @@ console.log(totals.items[0].count);</code></pre>
                 <td class="origin">60 min</td>
               </tr>
               <tr>
-                <th scope="row" class="mono" style="font-size:13px">Scraper local</th>
+                <th scope="row" class="mono" style="font-size:13px">API própria (HN scraping)</th>
                 <td class="mono" style="color:var(--fn);font-size:12px">GET</td>
-                <td>127.0.0.1:8787 (opcional)</td>
+                <td>/api/hackernews</td>
                 <td class="origin">nenhuma</td>
-                <td class="origin">—</td>
+                <td class="origin">5 min</td>
               </tr>
               <tr>
                 <th scope="row" class="mono" style="font-size:13px">Gemini</th>
@@ -379,6 +382,232 @@ console.log(totals.items[0].count);</code></pre>
               </tr>
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section class="section wrap" id="api-docs" data-api-docs>
+        <div class="section-head">
+          <h2 class="h2 headline two-tone">Documentação da API. <span>Contrato completo, sem mistério.</span></h2>
+          <div class="detail">
+            <p>A API REST deste projeto raspa o HTML do Hacker News no servidor e devolve JSON pronto para o
+              navegador. Use as abas abaixo para ver endpoints, contrato de resposta e erros.</p>
+            <p class="index">5.0 API REST →</p>
+          </div>
+        </div>
+
+        <div class="api-tabs" role="tablist" aria-label="Documentação da API própria">
+          <button class="api-tab" type="button" role="tab" id="tab-overview" aria-controls="panel-overview"
+            aria-selected="true" tabindex="0">Visão geral</button>
+          <button class="api-tab" type="button" role="tab" id="tab-endpoints" aria-controls="panel-endpoints"
+            aria-selected="false" tabindex="-1">Endpoints</button>
+          <button class="api-tab" type="button" role="tab" id="tab-response" aria-controls="panel-response"
+            aria-selected="false" tabindex="-1">Resposta</button>
+          <button class="api-tab" type="button" role="tab" id="tab-errors" aria-controls="panel-errors"
+            aria-selected="false" tabindex="-1">Erros</button>
+        </div>
+
+        <div class="api-panel nested" role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
+          <h3 class="h2 two-tone">Visão geral. <span>O que o serviço faz.</span></h3>
+          <p class="prose"><code class="inline-code">tools/scraper.mjs</code> é um servidor Node 18+ sem
+            dependências: serve a página estática e expõe a API. Não há autenticação, chave ou cobrança. As respostas
+            usam CORS <code class="inline-code">*</code> e são JSON.</p>
+          <div class="api-doc-grid" style="margin-top:20px">
+            <div>
+              <p class="eyebrow">BASE URL</p>
+              <p><code class="inline-code">http://localhost:8787/api</code> — quando você roda
+                <code class="inline-code">node tools/scraper.mjs</code>. Para hospedar à parte, configure
+                <code class="inline-code">hnApiBase</code> em <code class="inline-code">assets/js/config.js</code>
+                com a URL pública.</p>
+            </div>
+            <div>
+              <p class="eyebrow">DADOS</p>
+              <p>Scraping de <code class="inline-code">/newest</code>,
+                <code class="inline-code">/front?p=1..5</code> e da front page do HN, feito no servidor. Nenhuma API
+                de terceiros é usada para o buzz. Cache de 5 minutos por consulta.</p>
+            </div>
+          </div>
+          <figure class="code-block" data-lang="bash" style="margin-top:20px">
+            <figcaption class="code-chrome"><span>terminal</span><span class="lang">Bash</span><button
+                class="copy-btn" data-copy type="button"></button></figcaption>
+            <div class="code-body"><pre><code>node tools/scraper.mjs
+# site + API em http://localhost:8787
+# PORT=3000 node tools/scraper.mjs  # porta customizada</code></pre></div>
+          </figure>
+          <p class="timeline-note" style="margin-top:14px"><span class="mono">limite honesto:</span> o arquivo
+            público do HN cobre apenas os últimos dias. Quando não há posts da semana anterior,
+            <code class="inline-code">deltaPct</code> volta <code class="inline-code">null</code> em vez de um zero
+            inventado.</p>
+        </div>
+
+        <div class="api-panel nested" role="tabpanel" id="panel-endpoints" aria-labelledby="tab-endpoints" hidden>
+          <h3 class="h2 two-tone">Endpoints. <span>Dois caminhos, só GET.</span></h3>
+          <div class="table-wrap" style="margin-top:20px">
+            <table>
+              <thead>
+                <tr>
+                  <th>Método</th>
+                  <th>Caminho</th>
+                  <th>Parâmetros</th>
+                  <th>Descrição</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono" style="color:var(--fn);font-size:12px">GET</td>
+                  <td class="mono" style="font-size:13px">/api/health</td>
+                  <td class="origin">nenhum</td>
+                  <td>Status do serviço e endpoints disponíveis.</td>
+                </tr>
+                <tr>
+                  <td class="mono" style="color:var(--fn);font-size:12px">GET</td>
+                  <td class="mono" style="font-size:13px">/api/hackernews</td>
+                  <td><code class="inline-code">tech</code> (obrigatório),
+                    <code class="inline-code">aliases</code> (opcional)</td>
+                  <td>Raspa o HN e devolve o buzz da tecnologia em JSON.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="prose" style="margin-top:20px"><code class="inline-code">tech</code>: 1–60 caracteres,
+            letras, números, espaço, ponto, mais, cerquilha, hífen e underscore.
+            <code class="inline-code">aliases</code>: até 8 termos separados por vírgula, usados no casamento por
+            palavra inteira dos títulos.</p>
+          <figure class="code-block" data-lang="bash" style="margin-top:20px">
+            <figcaption class="code-chrome"><span>curl</span><span class="lang">Bash</span><button
+                class="copy-btn" data-copy type="button"></button></figcaption>
+            <div class="code-body"><pre><code>curl "http://localhost:8787/api/health"
+
+curl --get "http://localhost:8787/api/hackernews" \
+  --data-urlencode "tech=Rust" \
+  --data-urlencode "aliases=rust-lang"</code></pre></div>
+          </figure>
+        </div>
+
+        <div class="api-panel nested" role="tabpanel" id="panel-response" aria-labelledby="tab-response" hidden>
+          <h3 class="h2 two-tone">Resposta. <span>Campo por campo.</span></h3>
+          <div class="table-wrap" style="margin-top:20px">
+            <table>
+              <thead>
+                <tr>
+                  <th>Campo</th>
+                  <th>Tipo</th>
+                  <th>Significado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row" class="mono" style="font-size:13px">source</th>
+                  <td class="origin">string</td>
+                  <td><code class="inline-code">hn-scrape</code> ou <code class="inline-code">indisponivel</code>.</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="mono" style="font-size:13px">titlesLast7d / titlesPrev7d</th>
+                  <td class="origin">number</td>
+                  <td>Títulos que mencionam a tecnologia na última semana e na anterior.</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="mono" style="font-size:13px">deltaPct</th>
+                  <td class="origin">number | null</td>
+                  <td>Variação percentual; <code class="inline-code">null</code> sem base de comparação.</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="mono" style="font-size:13px">matchesLast7d</th>
+                  <td class="origin">number</td>
+                  <td>Posts amostrados com o termo no título ou na URL.</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="mono" style="font-size:13px">frontPage</th>
+                  <td class="origin">object | null</td>
+                  <td><code class="inline-code">{ posts, matches }</code> da front page atual.</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="mono" style="font-size:13px">recentPosts[]</th>
+                  <td class="origin">array</td>
+                  <td>Até 8 posts: <code class="inline-code">title</code>, <code class="inline-code">url</code>,
+                    <code class="inline-code">points</code>, <code class="inline-code">answers</code>,
+                    <code class="inline-code">askedAt</code>, <code class="inline-code">unanswered</code>.</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="mono" style="font-size:13px">note</th>
+                  <td class="origin">string</td>
+                  <td>Origem e limites da amostra, exibidos no relatório.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <figure class="code-block" data-lang="json" style="margin-top:20px">
+            <figcaption class="code-chrome"><span>resposta 200</span><span class="lang">JSON</span><button
+                class="copy-btn" data-copy type="button"></button></figcaption>
+            <div class="code-body"><pre><code>{
+  "source": "hn-scrape",
+  "query": "Rust",
+  "siteUrl": "https://news.ycombinator.com",
+  "searchUrl": "https://news.ycombinator.com/front",
+  "titlesLast7d": 3,
+  "titlesPrev7d": 0,
+  "deltaPct": null,
+  "matchesLast7d": 3,
+  "frontPage": { "posts": 30, "matches": 2 },
+  "recentPosts": [
+    {
+      "title": "Example post about Rust",
+      "url": "https://example.com/rust",
+      "points": 128,
+      "answers": 42,
+      "askedAt": "2026-11-16T12:00:00.000Z",
+      "unanswered": false
+    }
+  ],
+  "note": "API REST própria: scraping do HTML do news.ycombinator.com ..."
+}</code></pre></div>
+          </figure>
+        </div>
+
+        <div class="api-panel nested" role="tabpanel" id="panel-errors" aria-labelledby="tab-errors" hidden>
+          <h3 class="h2 two-tone">Erros. <span>Falha explícita, nunca dado inventado.</span></h3>
+          <div class="table-wrap" style="margin-top:20px">
+            <table>
+              <thead>
+                <tr>
+                  <th>HTTP</th>
+                  <th>Quando</th>
+                  <th>Corpo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono" style="color:var(--const);font-size:12px">400</td>
+                  <td><code class="inline-code">tech</code> ausente ou inválido.</td>
+                  <td><code class="inline-code">{ "error": "Parâmetro tech inválido..." }</code></td>
+                </tr>
+                <tr>
+                  <td class="mono" style="color:var(--const);font-size:12px">405</td>
+                  <td>Método diferente de GET/OPTIONS.</td>
+                  <td><code class="inline-code">{ "error": "Use GET /api/hackernews..." }</code></td>
+                </tr>
+                <tr>
+                  <td class="mono" style="color:var(--const);font-size:12px">502</td>
+                  <td>O HN não respondeu ou devolveu HTML inesperado.</td>
+                  <td><code class="inline-code">{ "source": "indisponivel", "error": "...", "note": "..." }</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <figure class="code-block" data-lang="json" style="margin-top:20px">
+            <figcaption class="code-chrome"><span>resposta 502</span><span class="lang">JSON</span><button
+                class="copy-btn" data-copy type="button"></button></figcaption>
+            <div class="code-body"><pre><code>{
+  "source": "indisponivel",
+  "query": "React",
+  "searchUrl": "https://news.ycombinator.com/front",
+  "note": "Scraping do Hacker News indisponível: HN respondeu HTTP 503",
+  "error": "HN respondeu HTTP 503"
+}</code></pre></div>
+          </figure>
+          <p class="timeline-note" style="margin-top:14px"><span class="mono">no cliente:</span> se a página estiver
+            hospedada sem o Node (GitHub Pages estático), <code class="inline-code">source-hackernews.js</code> não
+            encontra a API e tenta o scraping via proxies CORS. Para usar o contrato acima, sirva sempre com
+            <code class="inline-code">node tools/scraper.mjs</code>.</p>
         </div>
       </section>
 
@@ -526,6 +755,7 @@ console.log(totals.items[0].count);</code></pre>
             <li><a href="#analise" data-analyze="Vue.js">Vue.js</a></li>
             <li><a href="#analise" data-analyze="Rust">Rust</a></li>
             <li><a href="#fontes">Fontes de dados</a></li>
+            <li><a href="#api-docs">Documentação da API</a></li>
           </ul>
         </div>
         <div>
@@ -575,6 +805,7 @@ console.log(totals.items[0].count);</code></pre>
   <script src="./assets/js/source-hackernews.js"></script>
   <script src="./assets/js/data.js"></script>
   <script src="./assets/js/widgets.js"></script>
+  <script src="./assets/js/api-docs.js"></script>
   <script src="./assets/js/app.js"></script>
 </body>
 
