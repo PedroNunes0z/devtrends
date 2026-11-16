@@ -201,7 +201,14 @@ assets/js/
   dither-field.js           port vanilla do Magic UI Dither Field
   number-ticker.js          port vanilla do Magic UI Number Ticker
   highlight.js              tokenizador real + botão de copiar
-  data.js                   GitHub / Stack Exchange / Hacker News / Gemini / heurística / timeline
+  catalog.js                catálogo de tecnologias, opções da UI e utilitários de formato
+  http.js                   fetch com timeout + cache localStorage (exceto HN)
+  timeline.js               série histórica de 12 meses derivada dos totais reais
+  source-github.js          fonte: GitHub REST API (repo + amostragem de stargazers)
+  source-stackoverflow.js   fonte: Stack Exchange API (totais + amostra de perguntas)
+  source-hackernews.js      fonte: Hacker News/Algolia, buzz em títulos em tempo real
+  insights-ai.js            prompt do Gemini com rodízio de chaves + heurística local
+  data.js                   orquestrador: fontes + timeline + Gemini + avisos
   widgets.js                cartão de tendência, gauge, tags, gráfico de barras, projeção, comparativo, tabela, proveniência
   app.js                    bootstrap, botão "Analisar" (relatório on demand), painel Config, rodízio de chaves, opções de análise
 assets/img/                 favicon.svg, og-default.png

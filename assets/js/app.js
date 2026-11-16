@@ -18,17 +18,17 @@
 (function () {
   "use strict";
 
-  var D = window.DEVTRENDS_DATA;
-  var W = window.DEVTRENDS_WIDGETS;
-  var ICONS = window.DEVTRENDS_ICONS;
-  var H = window.DEVTRENDS_HIGHLIGHT;
+  var dataApi = window.DEVTRENDS_DATA;
+  var widgetRenderer = window.DEVTRENDS_WIDGETS;
+  var iconSet = window.DEVTRENDS_ICONS;
+  var syntaxHighlighter = window.DEVTRENDS_HIGHLIGHT;
 
   var currentAnalysis = null;
 
   /* --- Icons -------------------------------------------------------------- */
   function injectIcons(root) {
     Array.prototype.forEach.call((root || document).querySelectorAll("[data-icon]"), function (el) {
-      el.innerHTML = ICONS.get(el.getAttribute("data-icon"), el.getAttribute("data-icon-class") || "");
+      el.innerHTML = iconSet.get(el.getAttribute("data-icon"), el.getAttribute("data-icon-class") || "");
       el.removeAttribute("data-icon");
     });
   }
@@ -37,26 +37,32 @@
   function wireCommandCopy() {
     Array.prototype.forEach.call(document.querySelectorAll("[data-copy-command]"), function (btn) {
       var text = btn.getAttribute("data-copy-command");
-      btn.innerHTML = ICONS.get("copy");
+      btn.innerHTML = iconSet.get("copy");
       btn.classList.add("copy-btn");
       btn.setAttribute("aria-label", "Copiar comando");
       btn.addEventListener("click", function () {
         navigator.clipboard.writeText(text).then(function () {
-          btn.innerHTML = ICONS.get("check");
-          setTimeout(function () { btn.innerHTML = ICONS.get("copy"); }, 1600);
+          btn.innerHTML = iconSet.get("check");
+          setTimeout(function () { btn.innerHTML = iconSet.get("copy"); }, 1600);
         }).catch(function () { /* no clipboard */ });
       });
     });
   }
 
   /* --- Search and dynamic analysis triggers ------------------------------- */
+
+  /**
+   * Liga os gatilhos de análise: formulários de busca, chips de sugestão e
+   * links [data-analyze] (catálogo, CTA e rodapé). Todos chamam analyze().
+   * @param {Document|HTMLElement} [root] — raiz onde procurar os gatilhos
+   */
   function wireSearch(root) {
     Array.prototype.forEach.call((root || document).querySelectorAll("[data-search-form]"), function (form) {
       form.addEventListener("submit", function (event) {
         event.preventDefault();
         var input = form.querySelector("input[name=tech]");
         var name = input ? input.value : "";
-        if (!D.slugify(name)) { if (input) input.focus(); return; }
+        if (!dataApi.slugify(name)) { if (input) input.focus(); return; }
         analyze(name);
       });
     });
@@ -87,22 +93,26 @@
     });
   }
 
-  /* --- Collect user options from the UI controls --- */
+  /**
+   * Lê as opções selecionadas pelo usuário nos controles da interface
+   * (foco, profundidade, perfil, comparação, carreira, horizonte).
+   * @returns {Object} opções que entram no prompt do Gemini
+   */
   function collectOptions() {
-    var opts = {};
+    var selectedOptions = {};
     var focusEl = document.querySelector('[name="analysis-focus"]');
-    if (focusEl) opts.focus = focusEl.value;
+    if (focusEl) selectedOptions.focus = focusEl.value;
     var depthEl = document.querySelector('[name="analysis-depth"]');
-    if (depthEl) opts.depth = depthEl.value;
-    var expEl = document.querySelector('[name="experience-level"]');
-    if (expEl) opts.experience = expEl.value;
+    if (depthEl) selectedOptions.depth = depthEl.value;
+    var experienceEl = document.querySelector('[name="experience-level"]');
+    if (experienceEl) selectedOptions.experience = experienceEl.value;
     var compareEl = document.querySelector('[name="compare-with"]');
-    if (compareEl && compareEl.value.trim()) opts.compareWith = compareEl.value.trim();
+    if (compareEl && compareEl.value.trim()) selectedOptions.compareWith = compareEl.value.trim();
     var careerEl = document.querySelector('[name="consider-career"]');
-    if (careerEl) opts.considerCareer = careerEl.checked;
+    if (careerEl) selectedOptions.considerCareer = careerEl.checked;
     var horizonEl = document.querySelector('[name="time-horizon"]');
-    if (horizonEl && horizonEl.value) opts.timeHorizon = horizonEl.value;
-    return opts;
+    if (horizonEl && horizonEl.value) selectedOptions.timeHorizon = horizonEl.value;
+    return selectedOptions;
   }
 
   /* --- Config panel with key rotation UI --- */
@@ -110,7 +120,7 @@
     var toggle = document.getElementById("config-toggle");
     var panel = document.getElementById("config-panel");
     if (!toggle || !panel) return;
-    toggle.innerHTML = ICONS.get("settings", "icon-sm") + '<span>Config</span>';
+    toggle.innerHTML = iconSet.get("settings", "icon-sm") + '<span>Config</span>';
     toggle.style.display = "inline-flex";
     toggle.style.alignItems = "center";
     toggle.style.gap = "6px";
@@ -215,7 +225,7 @@
           (s.errors ? ', ' + s.errors + ' erros' : '') +
         '</span>' +
         (active ? '<span class="key-active-tag">ATIVA</span>' : "") +
-        '<button type="button" class="key-remove-btn" data-remove-key="' + esc(k.value) + '" aria-label="Remover chave">' + ICONS.get("refresh", "icon-sm") + '</button>' +
+        '<button type="button" class="key-remove-btn" data-remove-key="' + esc(k.value) + '" aria-label="Remover chave">' + iconSet.get("refresh", "icon-sm") + '</button>' +
       '</div>';
     }).join("");
 
@@ -241,7 +251,7 @@
 
   /* --- Status ------------------------------------------------------------- */
   function status(text, spinning) {
-    return '<div class="status-line">' + (spinning ? '<span class="spinner"></span>' : ICONS.get("info", "icon-sm")) + '<span>' + H.esc(text) + '</span></div>';
+    return '<div class="status-line">' + (spinning ? '<span class="spinner"></span>' : iconSet.get("info", "icon-sm")) + '<span>' + syntaxHighlighter.esc(text) + '</span></div>';
   }
 
   /* --- On-demand report (index.html#analise) ------------------------------- */
@@ -259,8 +269,13 @@
     target.innerHTML = status("Escolha uma tecnologia no topo e clique em “Analisar”. O relatório é construído na hora das chamadas reais das APIs.", false);
   }
 
+  /**
+   * Executa a análise sob demanda: consulta todas as fontes em tempo real,
+   * renderiza o relatório e atualiza URL, título e gatilhos.
+   * @param {string} inputName — tecnologia digitada ou clicada
+   */
   function analyze(inputName) {
-    var slug = D.slugify(inputName);
+    var slug = dataApi.slugify(inputName);
     if (!slug) return;
     var target = document.getElementById("report");
     if (!target) return;
@@ -275,18 +290,18 @@
     function load() {
       var reqId = ++currentRequestId;
       target.innerHTML = status("GET GitHub + Stack Overflow + Gemini…", true);
-      var opts = collectOptions();
-      D.getInsights(slug, opts).then(function (report) {
+      var selectedOptions = collectOptions();
+      dataApi.getInsights(slug, selectedOptions).then(function (report) {
         if (reqId !== currentRequestId) return;
         document.title = report.tech.name + ": tendência, popularidade e saúde da comunidade (" + report.ai.indiceVitalidade + "/100) | DevTrends Insights";
-        W.render(target, report);
+        widgetRenderer.render(target, report);
         injectIcons(target);
         wireReportActions(target);
       }).catch(function (error) {
         if (reqId !== currentRequestId) return;
         target.innerHTML = '<div class="status-line status-error">' +
-          ICONS.get("alert", "icon-sm") +
-          '<span>Falha na consulta: ' + H.esc(error.message) + '</span>' +
+          iconSet.get("alert", "icon-sm") +
+          '<span>Falha na consulta: ' + syntaxHighlighter.esc(error.message) + '</span>' +
           '<button type="button" class="btn btn-secondary retry-btn" data-retry-report style="margin-left:12px;height:30px;padding:0 12px;font-size:12px">Tentar novamente</button>' +
         '</div>';
         injectIcons(target);
@@ -351,7 +366,7 @@
       trigger.setAttribute("aria-haspopup", "listbox");
       trigger.setAttribute("aria-expanded", "false");
       trigger.innerHTML = '<span class="custom-select-value">' + esc(currentLabel) + '</span>' +
-        '<span class="custom-select-arrow" aria-hidden="true">' + ICONS.get("chevronDown", "icon-sm") + '</span>';
+        '<span class="custom-select-arrow" aria-hidden="true">' + iconSet.get("chevronDown", "icon-sm") + '</span>';
 
       var dropdown = document.createElement("div");
       dropdown.className = "custom-select-dropdown";
@@ -369,7 +384,7 @@
         btn.setAttribute("data-value", opt.value);
         btn.setAttribute("aria-selected", opt.selected ? "true" : "false");
         btn.innerHTML = '<span class="custom-select-option-label">' + esc(opt.textContent) + '</span>' +
-          '<span class="custom-select-option-check" aria-hidden="true">' + ICONS.get("check", "icon-sm") + '</span>';
+          '<span class="custom-select-option-check" aria-hidden="true">' + iconSet.get("check", "icon-sm") + '</span>';
         optionsWrap.appendChild(btn);
       });
 
@@ -445,10 +460,12 @@
             if (!container.classList.contains("open")) {
               open();
             } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-              var optsArr = Array.prototype.slice.call(options);
-              var activeIdx = optsArr.findIndex(function (o) { return o.classList.contains("selected"); });
-              var nextIdx = e.key === "ArrowDown" ? (activeIdx + 1) % optsArr.length : (activeIdx - 1 + optsArr.length) % optsArr.length;
-              selectValue(optsArr[nextIdx].getAttribute("data-value"));
+              var optionButtons = Array.prototype.slice.call(options);
+              var activeIndex = optionButtons.findIndex(function (optionButton) { return optionButton.classList.contains("selected"); });
+              var nextIndex = e.key === "ArrowDown"
+                ? (activeIndex + 1) % optionButtons.length
+                : (activeIndex - 1 + optionButtons.length) % optionButtons.length;
+              selectValue(optionButtons[nextIndex].getAttribute("data-value"));
             }
           } else if (e.key === "Escape") {
             close();
@@ -517,7 +534,7 @@
     wireCommandCopy();
     wireSearch(document);
     wireCustomSelects(document);
-    H.mount(document);
+    syntaxHighlighter.mount(document);
     window.DEVTRENDS_TICKER.mount(document);
     wireConfig(function () {
       if (currentAnalysis) analyze(currentAnalysis);
